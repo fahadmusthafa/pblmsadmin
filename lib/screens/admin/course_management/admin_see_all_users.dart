@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pblmsadmin/provider/authprovider.dart';
+import 'package:pblmsadmin/screens/admin/course_management/attandance.dart';
 import 'package:provider/provider.dart';
 
 class UsersTabView extends StatefulWidget {
@@ -14,9 +15,9 @@ class _UsersTabViewState extends State<UsersTabView>
   int? selectedUserId;
   late TabController _tabController;
   bool isLoading = false;
-  final Color primaryBlue = const Color(0xFF2196F3);
+  final Color primaryBlue = const Color(0xFF2E7D32);
   final Color lightBlue = const Color(0xFFE3F2FD);
-  final Color mediumBlue = const Color(0xFF90CAF9);
+  final Color mediumBlue = const Color.fromARGB(255, 155, 246, 159);
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
@@ -25,13 +26,10 @@ class _UsersTabViewState extends State<UsersTabView>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
-    // Use Future.microtask to fetch both lists simultaneously
+    // Use Future.microtask to fetch all users
     Future.microtask(() async {
       final provider = Provider.of<AdminAuthProvider>(context, listen: false);
-      await Future.wait([
-        provider.AdminfetchallusersProvider(),
-        provider.AdminfetchUnApprovedusersProvider(),
-      ]);
+      await provider.AdminfetchallusersProvider();
     });
   }
 
@@ -42,18 +40,16 @@ class _UsersTabViewState extends State<UsersTabView>
     super.dispose();
   }
 
-  List<dynamic> _getApprovedUsers(
-      List<dynamic>? allUsers, List<dynamic>? unapprovedUsers) {
+  // Get approved users directly from the users list based on approved flag
+  List<dynamic> _getApprovedUsers(List<dynamic>? allUsers) {
     if (allUsers == null) return [];
-    if (unapprovedUsers == null) return allUsers;
+    return allUsers.where((user) => user.approved == true).toList();
+  }
 
-    // Create a set of unapproved user IDs for efficient lookup
-    final unapprovedIds = Set<int>.from(unapprovedUsers.map((u) => u.userId));
-
-    // Filter out users whose IDs are in the unapproved set
-    return allUsers
-        .where((user) => !unapprovedIds.contains(user.userId))
-        .toList();
+  // Get unapproved users directly from the users list based on approved flag
+  List<dynamic> _getUnapprovedUsers(List<dynamic>? allUsers) {
+    if (allUsers == null) return [];
+    return allUsers.where((user) => user.approved == false).toList();
   }
 
   Future<void> _handleApproval(int userId, String role, String action) async {
@@ -68,17 +64,15 @@ class _UsersTabViewState extends State<UsersTabView>
       );
 
       if (mounted) {
-        // Refresh both lists after approval/rejection
-        await Future.wait([
-          provider.AdminfetchallusersProvider(),
-          provider.AdminfetchUnApprovedusersProvider(),
-        ]);
+        // Refresh users list after approval/rejection
+        await provider.AdminfetchallusersProvider();
 
         _showSnackBar(
-            action == 'approve'
-                ? 'User approved successfully'
-                : 'User deleted successfully',
-            isError: false);
+          action == 'approve'
+              ? 'User approved successfully'
+              : 'User deleted successfully',
+          isError: false,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -98,9 +92,7 @@ class _UsersTabViewState extends State<UsersTabView>
         backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
@@ -124,6 +116,11 @@ class _UsersTabViewState extends State<UsersTabView>
   @override
   Widget build(BuildContext context) {
     final allUsersProvider = Provider.of<AdminAuthProvider>(context);
+    final allUsers = allUsersProvider.users ?? [];
+
+    // Get approved and unapproved users based on the approved flag
+    final approvedUsers = _getApprovedUsers(allUsers);
+    final unapprovedUsers = _getUnapprovedUsers(allUsers);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -133,14 +130,17 @@ class _UsersTabViewState extends State<UsersTabView>
         title: const Text(
           'Users Management',
           style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 20, color: Colors.white),
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            color: Colors.white,
+          ),
         ),
         bottom: TabBar(
           controller: _tabController,
           indicator: BoxDecoration(
             color: const Color.fromARGB(255, 255, 255, 255),
           ),
-          labelColor: Colors.blue[900],
+          labelColor: Colors.green[900],
           unselectedLabelColor: Colors.white,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.bold,
@@ -169,15 +169,16 @@ class _UsersTabViewState extends State<UsersTabView>
               decoration: InputDecoration(
                 hintText: 'Search users...',
                 prefixIcon: Icon(Icons.search, color: primaryBlue),
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: primaryBlue),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => searchQuery = '');
-                        },
-                      )
-                    : null,
+                suffixIcon:
+                    searchQuery.isNotEmpty
+                        ? IconButton(
+                          icon: Icon(Icons.clear, color: primaryBlue),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => searchQuery = '');
+                          },
+                        )
+                        : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: mediumBlue),
@@ -206,17 +207,14 @@ class _UsersTabViewState extends State<UsersTabView>
               children: [
                 // Approved Users Tab
                 _buildUserList(
-                  _getApprovedUsers(
-                    allUsersProvider.users,
-                    allUsersProvider.unapprovedUsers,
-                  ),
-                  isLoading,
+                  approvedUsers,
+                  allUsersProvider.isLoading,
                   'approved',
                 ),
                 // Unapproved Users Tab
                 _buildUserList(
-                  allUsersProvider.unapprovedUsers ?? [],
-                  isLoading,
+                  unapprovedUsers,
+                  allUsersProvider.isLoading,
                   'unapproved',
                 ),
               ],
@@ -240,7 +238,9 @@ class _UsersTabViewState extends State<UsersTabView>
             Icon(Icons.people_outline, size: 48, color: Colors.grey),
             const SizedBox(height: 8),
             Text(
-              'No users available',
+              listType == 'approved'
+                  ? 'No approved users available'
+                  : 'No pending approvals available',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -264,303 +264,172 @@ class _UsersTabViewState extends State<UsersTabView>
   }
 
   Widget _buildExpandableUserCard(dynamic user, String listType) {
-    final isSelected = selectedUserId == user.userId;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () {
-          setState(() {
-            if (isSelected) {
-              selectedUserId = null;
-            } else {
-              selectedUserId = user.userId;
-              // Fetch user details when selected
-              final provider = Provider.of<AdminAuthProvider>(context, listen: false);
-              provider.fetchUserDetails(user.userId);
-            }
-          });
+          // Navigate to Attendance History Screen when user card is tapped
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => AttendanceHistoryScreen(studentId: user.userId),
+            ),
+          );
         },
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: isSelected ? lightBlue.withOpacity(0.3) : Colors.white,
-            border: Border.all(
-              color: isSelected
-                  ? primaryBlue.withOpacity(0.3)
-                  : Colors.grey.withOpacity(0.2),
-            ),
+            color: Colors.white,
+            border: Border.all(color: Colors.grey.withOpacity(0.2)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // User Avatar
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: isSelected ? primaryBlue : Colors.grey[300],
-                      child: Text(
-                        user.name[0].toUpperCase(),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // User Avatar
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.grey[300],
+                  child: Text(
+                    user.name.isNotEmpty ? user.name[0].toUpperCase() : "?",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // User Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        user.name,
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.normal,
+                          color: Colors.black87,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // User Details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                      const SizedBox(height: 2),
+                      Text(
+                        user.email,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
                         children: [
-                          Text(
-                            user.name,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected ? primaryBlue : Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            user.email,
-                            style: TextStyle(
-                              fontSize: 12,
+                          if (user.phoneNumber != null &&
+                              user.phoneNumber.isNotEmpty) ...[
+                            Icon(
+                              Icons.phone,
+                              size: 12,
                               color: Colors.grey[600],
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              if (user.phoneNumber != null &&
-                                  user.phoneNumber!.isNotEmpty) ...[
-                                Icon(
-                                  Icons.phone,
-                                  size: 12,
-                                  color: isSelected ? primaryBlue : Colors.grey[600],
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  user.phoneNumber!,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isSelected ? primaryBlue : Colors.grey[600],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                              ],
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? primaryBlue.withOpacity(0.1)
-                                      : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  user.role.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isSelected ? primaryBlue : Colors.grey[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                            const SizedBox(width: 4),
+                            Text(
+                              user.phoneNumber,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
                               ),
-                            ],
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              user.role.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Show approval badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  user.approved
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.amber.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              user.approved ? 'APPROVED' : 'PENDING',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color:
+                                    user.approved
+                                        ? Colors.green[700]
+                                        : Colors.amber[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    // Action Buttons
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (listType == 'unapproved')
-                          TextButton(
-                            onPressed: () =>
-                                _handleApproval(user.userId, user.role, 'approve'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.green,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              minimumSize: const Size(80, 40),
+                    ],
+                  ),
+                ),
+                // Action Buttons
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (listType == 'unapproved')
+                      TextButton(
+                        onPressed:
+                            () => _handleApproval(
+                              user.userId,
+                              user.role,
+                              'approve',
                             ),
-                            child: const Text('Approve'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
                           ),
-                        TextButton(
-                          onPressed: () =>
-                              _handleApproval(user.userId, user.role, 'reject'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            minimumSize: const Size(80, 40),
-                          ),
-                          child:
-                              Text(listType == 'unapproved' ? 'Reject' : 'Delete'),
+                          minimumSize: const Size(80, 40),
                         ),
-                      ],
+                        child: const Text('Approve'),
+                      ),
+                    TextButton(
+                      onPressed:
+                          () =>
+                              _handleApproval(user.userId, user.role, 'reject'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        minimumSize: const Size(80, 40),
+                      ),
+                      child: Text(
+                        listType == 'unapproved' ? 'Reject' : 'Delete',
+                      ),
                     ),
                   ],
                 ),
-              ),
-              // Expanded Course Details Section
-              if (isSelected)
-                Consumer<AdminAuthProvider>(
-                  builder: (context, provider, child) {
-                    final userDetails = provider.user;
-
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(12),
-                          bottomRight: Radius.circular(12),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.book_outlined,
-                                  size: 20, color: primaryBlue),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Enrolled Courses',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryBlue,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (userDetails == null)
-                            const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: CircularProgressIndicator(),
-                              ),
-                            )
-                          else if (userDetails.user.courses.isEmpty)
-                            const Text(
-                              'No courses enrolled',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            )
-                          else
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: userDetails.user.courses.length,
-                              itemBuilder: (context, index) {
-                                final course = userDetails.user.courses[index];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.grey.withOpacity(0.2),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        course.courseName,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      if (course.batchName != null) ...[
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(Icons.group_outlined,
-                                                size: 12, color: Colors.grey[600]),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Batch: ${course.batchName}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                      if (course.assignments != null ||
-                                          course.quizzes != null) ...[
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            if (course.assignments != null)
-                                              Expanded(
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.assignment_outlined,
-                                                        size: 12,
-                                                        color: Colors.grey[600]),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Assignments: ${course.assignments!.submittedAssignments}/${course.assignments!.totalAssignments}',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors.grey[600],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            if (course.quizzes != null)
-                                              Expanded(
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.quiz_outlined,
-                                                        size: 12,
-                                                        color: Colors.grey[600]),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Quizzes: ${course.quizzes!.submittedQuizzes}/${course.quizzes!.totalQuizzes}',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors.grey[600],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

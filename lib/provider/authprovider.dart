@@ -6,13 +6,16 @@ import 'package:pblmsadmin/models/admin_model.dart';
 import 'package:pblmsadmin/screens/admin/admin_dashboard.dart';
 import 'package:pblmsadmin/screens/admin/login/admin_login.dart';
 import 'package:pblmsadmin/services/webservice.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminAuthProvider with ChangeNotifier {
   void clearModuleData() {
     _courseModules = {};
     notifyListeners();
   }
+
+  String? get errorMessage => _errorMessage;
+  String? _errorMessage;
 
   String? _token;
   String? deleteMessage;
@@ -35,6 +38,7 @@ class AdminAuthProvider with ChangeNotifier {
   List<dynamic> getSubmissionsForAssignment(int assignmentId) {
     return _submissions[assignmentId] ?? [];
   }
+
   List<Admincoursemodel> _course = []; // Correctly store courses
 
   List<Admincoursemodel> get course => _course;
@@ -43,7 +47,6 @@ class AdminAuthProvider with ChangeNotifier {
 
   List<LeaveRequest> get leave => _leave;
 
-  
   List<Bug> _bug = []; // Correctly store courses
 
   List<Bug> get bug => _bug;
@@ -81,10 +84,9 @@ class AdminAuthProvider with ChangeNotifier {
 
   final Map<int, List<AdminLessonmodel>> _moduleLessons = {};
 
-
   final Map<int, List<AssignmentModel>> _moduleassignments = {};
 
-   final Map<int, List<AdminQuizModel>> _moduleQuiz = {};
+  final Map<int, List<AdminQuizModel>> _moduleQuiz = {};
 
   List<AdminQuizModel> getQuizForModule(int moduleId) {
     return _moduleQuiz[moduleId] ?? [];
@@ -130,7 +132,7 @@ class AdminAuthProvider with ChangeNotifier {
     return _moduleassignments[moduleId] ?? [];
   }
 
-// Modify this method to return a Future<List<AdminLiveLinkResponse>> instead of just a list
+  // Modify this method to return a Future<List<AdminLiveLinkResponse>> instead of just a list
   Future<List<AdminLiveLinkResponse>> getLiveForbatch(int batchId) async {
     if (_livebatch[batchId] == null) {
       await AdminfetchLiveAdmin(batchId); // Make sure the data is fetched
@@ -164,9 +166,9 @@ class AdminAuthProvider with ChangeNotifier {
         await AdminfetchCoursesprovider();
         await AdminfetchUnApprovedusersProvider();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Login successful!')));
 
         Navigator.pushReplacement(
           context,
@@ -180,16 +182,27 @@ class AdminAuthProvider with ChangeNotifier {
       print('Error during login: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('An error occurred. Please check your details.')),
+          content: Text('An error occurred. Please check your details.'),
+        ),
       );
     }
   }
 
-  Future<void> Adminregisterprovider(String email, String password, String name,
-      String role, String phoneNumber) async {
+  Future<void> Adminregisterprovider(
+    String email,
+    String password,
+    String name,
+    String role,
+    String phoneNumber,
+  ) async {
     try {
       await _apiService.AdminRegisterAPI(
-          email, password, name, role, phoneNumber);
+        email,
+        password,
+        name,
+        role,
+        phoneNumber,
+      );
     } catch (e) {
       print('Error creating register: $e');
       throw Exception('Failed to create register');
@@ -224,21 +237,40 @@ class AdminAuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Fetch courses from the API
-  Future<void> AdminfetchCoursesprovider() async {
-  if (_token == null) throw Exception('Token is missing');
-  try {
-    _course = await _apiService.AdminfetchCoursesAPI(_token!);
-    print('Fetched courses: $_course');
-    notifyListeners();
-  } catch (e) {
-    print('Error fetching courses: $e');
+  Future<void> savecourseId(int courseId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('courseId', courseId);
   }
-}
+
+  Future<void> AdminfetchCoursesprovider() async {
+    if (_token == null) throw Exception('Token is missing');
+    try {
+      _course = await _apiService.AdminfetchCoursesAPI(_token!);
+
+      if (_course.isNotEmpty) {
+        int courseId =
+            _course.first.courseId; // Assuming 'id' is the course ID field
+        await savecourseId(courseId); // Store courseId
+        print('Saved Course ID: $courseId');
+      }
+
+      print('Fetched courses: $_course');
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching courses: $e');
+    }
+  }
+
+  Future<int?> getSavedCourseId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('courseId'); // Retrieve stored courseId
+  }
 
   // Create a new course
   Future<void> AdmincreateCourseprovider(
-      String title, String description) async {
+    String title,
+    String description,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
     try {
       await _apiService.AdmincreateCourseAPI(title, description, _token!);
@@ -255,7 +287,6 @@ class AdminAuthProvider with ChangeNotifier {
       final result = await _apiService.deleteAdminCourse(courseId, _token!);
       print(result); // Optionally print success message
 
-      // After successful deletion, re-fetch the courses to update the list
       await AdminfetchCoursesprovider();
     } catch (e) {
       print('Error deleting course: $e');
@@ -263,7 +294,10 @@ class AdminAuthProvider with ChangeNotifier {
   }
 
   Future<void> AdminupdateCourse(
-      int courseId, String title, String description) async {
+    int courseId,
+    String title,
+    String description,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
 
     try {
@@ -280,14 +314,14 @@ class AdminAuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> AdminfetchModulesForCourseProvider(
-      int courseId, int batchId) async {
+  Future<void> AdminfetchModulesForCourseProvider(int courseId) async {
     if (_token == null) throw Exception('Token is missing');
     try {
       final modules = await _apiService.AdminfetchModulesForCourseAPI(
-          _token!, courseId, batchId);
+        _token!,
+        courseId,
+      );
       _courseModules[courseId] = modules;
-      _courseModules[batchId] = modules;
       notifyListeners();
     } catch (e) {
       print('Error fetching modules for course: $e');
@@ -296,19 +330,21 @@ class AdminAuthProvider with ChangeNotifier {
   }
 
   Future<void> Admincreatemoduleprovider(
-      String title, String content, int courseId, int batchId) async {
+    String title,
+    String content,
+    int courseId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
     try {
       print('Creating module for courseId: $courseId,$batchId');
 
       // Call API to create the module
-      await _apiService.AdmincreatemoduleAPI(
-          _token!, courseId, batchId, title, content);
+      await _apiService.AdmincreatemoduleAPI(_token!, courseId, title, content);
 
       print('Module creation successful. Fetching updated modules...');
 
       // Fetch updated modules after creation
-      await AdminfetchModulesForCourseProvider(courseId, batchId);
+      await AdminfetchModulesForCourseProvider(courseId);
 
       print('Modules fetched successfully.');
     } catch (e) {
@@ -317,35 +353,48 @@ class AdminAuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> admindeletemoduleprovider(
-      int courseId, int batchId, int moduleId) async {
+  Future<void> admindeletemoduleprovider(int courseId, int moduleId) async {
     if (_token == null) throw Exception('Token is missing');
     try {
       final result = await _apiService.deleteAdminmodule(
-          courseId, batchId, _token!, moduleId);
+        courseId,
+        _token!,
+        moduleId,
+      );
       print(result); // Optionally print success message
 
       if (_courseModules.containsKey(courseId)) {
-        _courseModules[courseId]
-            ?.removeWhere((module) => module.moduleId == moduleId);
+        _courseModules[courseId]?.removeWhere(
+          (module) => module.moduleId == moduleId,
+        );
         notifyListeners(); // Notify listeners immediately for UI update
       }
       // After successful deletion, re-fetch the courses to update the list
-      await AdminfetchModulesForCourseProvider(courseId, batchId);
+      await AdminfetchModulesForCourseProvider(courseId);
     } catch (e) {
       print('Error deleting module: $e');
     }
   }
 
-  Future<void> AdminUpdatemoduleprovider(int courseId, int batchId,
-      String title, String content, int moduleId) async {
+  Future<void> AdminUpdatemoduleprovider(
+    int courseId,
+    String title,
+    String content,
+    int moduleId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
 
     try {
       await _apiService.AdminupdateModuleAPI(
-          _token!, courseId, batchId, title, content, moduleId);
+        _token!,
+        courseId,
+        title,
+        content,
+        moduleId,
+      );
       await AdminfetchModulesForCourseProvider(
-          courseId, batchId); // Refresh the course list after update
+        courseId,
+      ); // Refresh the course list after update
     } catch (e) {
       print('Error updating module: $e');
       throw Exception('Failed to update module');
@@ -353,11 +402,17 @@ class AdminAuthProvider with ChangeNotifier {
   }
 
   Future<void> AdminfetchLessonsForModuleProvider(
-      int courseId, int batchId, int moduleId) async {
+    int courseId,
+    int moduleId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
     try {
       final lessons = await _apiService.AdminfetchLessonsForModuleAPI(
-          _token!, courseId, batchId, moduleId);
+        _token!,
+        courseId,
+
+        moduleId,
+      );
       _moduleLessons[moduleId] = lessons;
       notifyListeners();
     } catch (e) {
@@ -368,11 +423,11 @@ class AdminAuthProvider with ChangeNotifier {
 
   Future<void> Admincreatelessonprovider(
     int courseId,
-    int batchId,
     int moduleId,
     String content,
     String title,
     String videoLink,
+    String pdfUrl,
   ) async {
     if (_token == null) throw Exception('Token is missing');
     try {
@@ -383,17 +438,17 @@ class AdminAuthProvider with ChangeNotifier {
       await _apiService.AdmincreatelessonseAPI(
         _token!,
         courseId,
-        batchId,
         moduleId,
         content,
         title,
         videoLink,
+        pdfUrl,
       );
 
       print('Lesson creation successful. Fetching updated lessons...');
 
       // Fetch updated lessons after creation
-      await AdminfetchLessonsForModuleProvider(courseId, batchId, moduleId);
+      await AdminfetchLessonsForModuleProvider(courseId, moduleId);
 
       print('Lessons fetched successfully.');
     } catch (e) {
@@ -403,88 +458,99 @@ class AdminAuthProvider with ChangeNotifier {
   }
 
   Future<void> admindeletelessonprovider(
-      int courseId, int batchId, int moduleId, int lessonId) async {
+    int courseId,
+    int moduleId,
+    int lessonId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
     try {
-      final result = await _apiService.deleteAdminlesson(
-          courseId, batchId, _token!, moduleId, lessonId);
+      final result = await _apiService.deleteAdminlesson(_token!, lessonId);
       print(result); // Optionally print success message
 
       if (_courseModules.containsKey(courseId)) {
-        _moduleLessons[moduleId]
-            ?.removeWhere((lesson) => lesson.lessonId == lessonId);
+        _moduleLessons[moduleId]?.removeWhere(
+          (lesson) => lesson.lessonId == lessonId,
+        );
         notifyListeners();
-        
-         // Notify listeners immediately for UI update
+
+        // Notify listeners immediately for UI update
       }
       // After successful deletion, re-fetch the courses to update the list
-      await AdminfetchLessonsForModuleProvider(courseId, batchId, moduleId);
+      await AdminfetchLessonsForModuleProvider(courseId, moduleId);
     } catch (e) {
       print('Error deleting module: $e');
     }
   }
 
-  Future<void> AdminUpdatelessonprovider(int courseId, int batchId,
-      String title, String content, int lessonId, int moduleId) async {
-    if (_token == null) throw Exception('Token is missing');
-
-    try {
-      await _apiService.AdminupdateLessonAPI(
-        _token!,
-        courseId,
-        batchId,
-        title,
-        content,
-        moduleId,
-        lessonId,
-      );
-
-      // Refresh the lessons list
-      await AdminfetchLessonsForModuleProvider(courseId, batchId, moduleId);
-
-      notifyListeners();
-    } catch (e) {
-      print('Error updating lesson: $e');
-      throw Exception('Failed to update lesson: $e');
-    }
-  }
-
-  Future AdminCreateBatchProvider(
-  String batchName,
+  Future<void> AdminUpdatelessonprovider(
   int courseId,
-  DateTime startDate,
-  DateTime endDate,
+  String title,
+  String content,
+  int lessonId,
+  int moduleId,
+  String videoLink,
+  String pdfUrl,
 ) async {
-  if (_token == null) {
-    throw Exception('Authentication token is missing');
-  }
-  
-  // Validate required fields
-  if (courseId <= 0) {
-    throw Exception('Invalid courseId');
-  }
-  if (batchName.trim().isEmpty) {
-    throw Exception('Batch name is required');
-  }
+  if (_token == null) throw Exception('Token is missing');
   
   try {
-    final result = await _apiService.adminCreateBatch(
+    await _apiService.AdminupdateLessonAPI(
       _token!,
       courseId,
-      batchName.trim(),
-      startDate,
-      endDate,
+      title,
+      content,
+      moduleId,
+      lessonId,
+      videoLink,
+      pdfUrl,
     );
     
-    // Update the local state with the new batch
-    final currentBatches = courseBatches[courseId] ?? [];
-    courseBatches[courseId] = [...currentBatches, result];
+    // Refresh the lessons list
+    await AdminfetchLessonsForModuleProvider(courseId, moduleId);
+    
     notifyListeners();
   } catch (e) {
-    print('Error in AdminCreateBatchProvider: $e');
-    rethrow;
+    print('Error updating lesson: $e');
+    throw Exception('Failed to update lesson: $e');
   }
 }
+
+  Future AdminCreateBatchProvider(
+    String batchName,
+    int courseId,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    if (_token == null) {
+      throw Exception('Authentication token is missing');
+    }
+
+    // Validate required fields
+    if (courseId <= 0) {
+      throw Exception('Invalid courseId');
+    }
+    if (batchName.trim().isEmpty) {
+      throw Exception('Batch name is required');
+    }
+
+    try {
+      final result = await _apiService.adminCreateBatch(
+        _token!,
+        courseId,
+        batchName.trim(),
+        startDate,
+        endDate,
+      );
+
+      // Update the local state with the new batch
+      final currentBatches = courseBatches[courseId] ?? [];
+      courseBatches[courseId] = [...currentBatches, result];
+      notifyListeners();
+    } catch (e) {
+      print('Error in AdminCreateBatchProvider: $e');
+      rethrow;
+    }
+  }
 
   Future<void> AdminfetchBatchForCourseProvider(int courseId) async {
     if (_token == null) throw Exception('Token is missing');
@@ -493,8 +559,10 @@ class AdminAuthProvider with ChangeNotifier {
       _isLoading = true; // Set loading to true
       notifyListeners(); // Notify listeners that the loading state has changed
 
-      final Batches =
-          await _apiService.AdminfetctBatchForCourseAPI(_token!, courseId);
+      final Batches = await _apiService.AdminfetctBatchForCourseAPI(
+        _token!,
+        courseId,
+      );
       _courseBatches[courseId] = Batches; // Store fetched batches
 
       _isLoading = false; // Set loading to false once data is fetched
@@ -542,33 +610,49 @@ class AdminAuthProvider with ChangeNotifier {
   ) async {
     if (_token == null) throw Exception('Token is missing');
     try {
-      final result =
-          await _apiService.deleteAdminBatch(courseId, _token!, batchId);
+      final result = await _apiService.deleteAdminBatch(
+        courseId,
+        _token!,
+        batchId,
+      );
       print(result); // Optionally print success message
 
       if (_courseBatches.containsKey(courseId)) {
-        _courseBatches[courseId]
-            ?.removeWhere((Batche) => Batche.batchId == batchId);
+        _courseBatches[courseId]?.removeWhere(
+          (Batche) => Batche.batchId == batchId,
+        );
         notifyListeners(); // Notify listeners immediately for UI update
       }
       // After successful deletion, re-fetch the courses to update the list
-      await AdminfetchModulesForCourseProvider(courseId, batchId);
+      await AdminfetchModulesForCourseProvider(courseId);
     } catch (e) {
       print('Error deleting module: $e');
     }
   }
 
   Future<void> AdminfetchallusersProvider() async {
-    if (_token == null) throw Exception('Token is missing');
+    if (_token == null) {
+      _errorMessage = 'Token is missing';
+      notifyListeners();
+      throw Exception(_errorMessage);
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners(); // Notify listeners that loading has started
+
     try {
-      _users = await _apiService.AdminfetchUsersAPI(_token!);
+      final fetchedUsers = await _apiService.fetchAdminUsers(_token!);
+      _users = fetchedUsers;
 
-      // Print the fetched users to the terminal
+      // Print the fetched users for debugging
       print('Fetched users: $_users');
-
-      notifyListeners(); // Notify listeners that users are fetched
     } catch (e) {
-      print('Error fetching users: $e');
+      _errorMessage = 'Error fetching users: $e';
+      print(_errorMessage);
+    } finally {
+      _isLoading = false;
+      notifyListeners(); // Notify listeners when data is updated
     }
   }
 
@@ -646,8 +730,14 @@ class AdminAuthProvider with ChangeNotifier {
     await AdminfetchallusersProvider();
   }
 
-  Future<void> AdminUploadlessonprovider(int courseId, int batchId,
-      String title, String content, int lessonId, int moduleId) async {
+  Future<void> AdminUploadlessonprovider(
+    int courseId,
+    int batchId,
+    String title,
+    String content,
+    int lessonId,
+    int moduleId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
 
     try {
@@ -662,86 +752,12 @@ class AdminAuthProvider with ChangeNotifier {
       );
 
       // Refresh the lessons list
-      await AdminfetchLessonsForModuleProvider(courseId, batchId, moduleId);
+      await AdminfetchLessonsForModuleProvider(courseId, moduleId);
 
       notifyListeners();
     } catch (e) {
       print('Error uploading lesson: $e');
       throw Exception('Failed to upload lesson: $e');
-    }
-  }
-
-  Future<void> createQuizProvider({
-    required int batchId,
-    required int courseId,
-    required int moduleId,
-    required String name,
-    required String description,
-    required List<Map<String, dynamic>> questions,
-  }) async {
-    if (_token == null) throw Exception('Token is missing');
-
-    // Validate input data
-    if (name.isEmpty) throw Exception('Quiz name cannot be empty');
-    if (description.isEmpty) {
-      throw Exception('Quiz description cannot be empty');
-    }
-    if (questions.isEmpty) {
-      throw Exception('Quiz must have at least one question');
-    }
-
-    // Validate each question
-    for (var question in questions) {
-      if (!question.containsKey('text') || question['text'].isEmpty) {
-        throw Exception('Question text cannot be empty');
-      }
-
-      if (!question.containsKey('answers') ||
-          question['answers'] is! List ||
-          (question['answers'] as List).isEmpty) {
-        throw Exception('Each question must have answers');
-      }
-
-      var hasCorrectAnswer = false;
-      for (var answer in question['answers']) {
-        if (!answer.containsKey('text') || answer['text'].isEmpty) {
-          throw Exception('Answer text cannot be empty');
-        }
-        if (answer['isCorrect'] == true) {
-          hasCorrectAnswer = true;
-        }
-      }
-
-      if (!hasCorrectAnswer) {
-        throw Exception('Each question must have at least one correct answer');
-      }
-    }
-
-    try {
-      // print('Creating quiz with following data:');
-      // print('Course ID: $courseId');
-      // print('Module ID: $moduleId');
-      // print('Batch ID: $batchId');
-      // print('Name: $name');
-      // print('Description: $description');
-      // print('Number of questions: ${questions.length}');
-
-      await _apiService.createQuizAPI(
-        token: _token!,
-        batchId: batchId,
-        courseId: courseId,
-        moduleId: moduleId,
-        data: {
-          'name': name,
-          'description': description,
-          'questions': questions,
-        },
-      );
-
-      notifyListeners();
-    } catch (e) {
-      print('Error in createQuizProvider: $e');
-      throw Exception('Failed to create quiz: $e');
     }
   }
 
@@ -800,13 +816,18 @@ class AdminAuthProvider with ChangeNotifier {
   }
 
   Future<void> fetchAssignmentForModuleProvider(
-      int courseId, int moduleId) async {
+    int courseId,
+    int moduleId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
 
     try {
       print('Fetching assignments for Course: $courseId, Module: $moduleId');
       final assignments = await _apiService.fetchAssignmentForModuleAPI(
-          _token!, courseId, moduleId);
+        _token!,
+        courseId,
+        moduleId,
+      );
 
       _moduleassignments[moduleId] = assignments;
       print('Fetched ${assignments.length} assignments');
@@ -818,30 +839,43 @@ class AdminAuthProvider with ChangeNotifier {
     }
   }
 
- Future<void> admindeleteassignmentprovider(
-    int courseId, int moduleId, int assignmentId) async {
-  if (_token == null) throw Exception('Token is missing');
+  Future<void> admindeleteassignmentprovider(
+    int courseId,
+    int moduleId,
+    int assignmentId,
+  ) async {
+    if (_token == null) throw Exception('Token is missing');
 
-  try {
-    final result = await _apiService.deleteAdminAssignmentAPI(
-        _token!, assignmentId, courseId, moduleId);
-    print(result);
+    try {
+      final result = await _apiService.deleteAdminAssignmentAPI(
+        _token!,
+        assignmentId,
+        courseId,
+        moduleId,
+      );
+      print(result);
 
-    // Update the local state
-    _moduleassignments[moduleId]?.removeWhere(
-        (assignment) => assignment.assignmentId == assignmentId);
-    notifyListeners();
+      // Update the local state
+      _moduleassignments[moduleId]?.removeWhere(
+        (assignment) => assignment.assignmentId == assignmentId,
+      );
+      notifyListeners();
 
-    // Fetch updated assignments list
-    await fetchAssignmentForModuleProvider(courseId, moduleId);
-  } catch (e) {
-    print('Error deleting assignment: $e');
-    throw Exception('Failed to delete assignment');
+      // Fetch updated assignments list
+      await fetchAssignmentForModuleProvider(courseId, moduleId);
+    } catch (e) {
+      print('Error deleting assignment: $e');
+      throw Exception('Failed to delete assignment');
+    }
   }
-}
 
-  Future<void> AdminUpdateAssignment(int courseId, String title,
-      String description, int assignmentId, int moduleId) async {
+  Future<void> AdminUpdateAssignment(
+    int courseId,
+    String title,
+    String description,
+    int assignmentId,
+    int moduleId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
 
     try {
@@ -866,7 +900,9 @@ class AdminAuthProvider with ChangeNotifier {
   }
 
   Future<void> AdminfetchallusersBatchProvider(
-      int courseId, int batchId) async {
+    int courseId,
+    int batchId,
+  ) async {
     if (_token == null) {
       _error = 'Token is missing';
       notifyListeners();
@@ -902,8 +938,9 @@ class AdminAuthProvider with ChangeNotifier {
     if (_token == null) throw Exception('Token is missing');
     try {
       // Update the list with fetched data
-      _unapprovedUsers =
-          await _apiService.AdminfetchUnApprovedUsersAPI(_token!);
+      _unapprovedUsers = await _apiService.AdminfetchUnApprovedUsersAPI(
+        _token!,
+      );
       print('Fetched unapproved users: $_unapprovedUsers');
       notifyListeners();
     } catch (e) {
@@ -937,8 +974,10 @@ class AdminAuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final submissions =
-          await _apiService.fetchSubmission(assignmentId, _token!);
+      final submissions = await _apiService.fetchSubmission(
+        assignmentId,
+        _token!,
+      );
       _submissions[assignmentId] = submissions;
     } catch (e) {
       print('Error fetching submissions: $e');
@@ -954,8 +993,10 @@ class AdminAuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final quizsubmissions =
-          await _apiService.fetchQuizAnswers(quizId, _token!);
+      final quizsubmissions = await _apiService.fetchQuizAnswers(
+        quizId,
+        _token!,
+      );
       _quizsubmissions[quizId] = quizsubmissions;
     } catch (e) {
       _quizsubmissions[quizId] = [];
@@ -964,48 +1005,58 @@ class AdminAuthProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-Future<void> deleteQuizProvider(int courseId, int moduleId, int quizId) async {
-  if (_token == null) throw Exception('Token is missing');
 
-  try {
-    print("Calling API to delete quiz: Course=$courseId, Module=$moduleId, Quiz=$quizId");
+  Future<void> deleteQuizProvider(
+    int courseId,
+    int moduleId,
+    int quizId,
+  ) async {
+    if (_token == null) throw Exception('Token is missing');
 
-    await _apiService.AdmindeleteQuizAPI(
-      token: _token!,
-      courseId: courseId,
-      moduleId: moduleId,
-      quizId: quizId,
-    );
+    try {
+      print(
+        "Calling API to delete quiz: Course=$courseId, Module=$moduleId, Quiz=$quizId",
+      );
 
-    print("Quiz deleted successfully from API. Now updating local state...");
+      await _apiService.AdmindeleteQuizAPI(
+        token: _token!,
+        courseId: courseId,
+        moduleId: moduleId,
+        quizId: quizId,
+      );
 
-    // Remove the quiz from the moduleQuiz map
-    if (_moduleQuiz.containsKey(moduleId)) {
-      _moduleQuiz[moduleId]?.removeWhere((quiz) => quiz.quizId == quizId);
+      print("Quiz deleted successfully from API. Now updating local state...");
 
-      // If the module has no more quizzes, remove the module entry
-      if (_moduleQuiz[moduleId]!.isEmpty) {
-        _moduleQuiz.remove(moduleId);
+      // Remove the quiz from the moduleQuiz map
+      if (_moduleQuiz.containsKey(moduleId)) {
+        _moduleQuiz[moduleId]?.removeWhere((quiz) => quiz.quizId == quizId);
+
+        // If the module has no more quizzes, remove the module entry
+        if (_moduleQuiz[moduleId]!.isEmpty) {
+          _moduleQuiz.remove(moduleId);
+        }
       }
+
+      notifyListeners(); // Ensure UI updates
+    } catch (e) {
+      print('Error in deleteQuizProvider: $e');
+      throw Exception('Unable to delete quiz. Please try again later.');
     }
-
-    notifyListeners(); // Ensure UI updates
-  } catch (e) {
-    print('Error in deleteQuizProvider: $e');
-    throw Exception('Unable to delete quiz. Please try again later.');
   }
-}
 
-
-Future<void> refreshQuizzes(int courseId, int moduleId) async {
-  try {
-    final updatedQuizzes = await _apiService.fetchQuizzes(_token!, courseId, moduleId);
-    _moduleQuiz[moduleId] = updatedQuizzes;
-    notifyListeners();
-  } catch (e) {
-    print('Error refreshing quizzes: $e');
+  Future<void> refreshQuizzes(int courseId, int moduleId) async {
+    try {
+      final updatedQuizzes = await _apiService.fetchQuizzes(
+        _token!,
+        courseId,
+        moduleId,
+      );
+      _moduleQuiz[moduleId] = updatedQuizzes;
+      notifyListeners();
+    } catch (e) {
+      print('Error refreshing quizzes: $e');
+    }
   }
-}
 
   Future<void> updateQuizProvider({
     required int quizId,
@@ -1055,10 +1106,7 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
         token: _token!,
         quizId: quizId,
         questionId: questionId,
-        data: {
-          'text': text,
-          'answers': answers,
-        },
+        data: {'text': text, 'answers': answers},
       );
 
       notifyListeners();
@@ -1116,43 +1164,55 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
   }
 
   Future<void> AdmincreateLivelinkprovider(
-  int batchId,
-  String liveLink,
-  DateTime liveStartTime,
-) async {
-  if (_token == null) throw Exception('Token is missing');
-  try {
-    // Remove courseId reference as it's not needed or defined
-    print('Creating LiveLink for batchId: $batchId');
-    
-    // Call API to create the live link
-    await _apiService.AdminpostLiveLink(
-        _token!, batchId, liveLink, liveStartTime);
-    
-    print('LiveLink creation successful. Fetching updated live data...');
-    // Fetch updated live data after creation
-    await AdminfetchLiveAdmin(batchId);
-    print('LiveLink created and data refreshed successfully.');
-  } catch (e) {
-    print('Error creating LiveLink: $e');
-    // Modify this condition to not reference courseId
-    if (e.toString().contains("Batch not found")) {
-      throw Exception('Batch ID $batchId not found. Please verify.');
-    } else {
-      throw Exception('Failed to create LiveLink: $e');
+    int batchId,
+    String liveLink,
+    DateTime liveStartTime,
+  ) async {
+    if (_token == null) throw Exception('Token is missing');
+    try {
+      // Remove courseId reference as it's not needed or defined
+      print('Creating LiveLink for batchId: $batchId');
+
+      // Call API to create the live link
+      await _apiService.AdminpostLiveLink(
+        _token!,
+        batchId,
+        liveLink,
+        liveStartTime,
+      );
+
+      print('LiveLink creation successful. Fetching updated live data...');
+      // Fetch updated live data after creation
+      await AdminfetchLiveAdmin(batchId);
+      print('LiveLink created and data refreshed successfully.');
+    } catch (e) {
+      print('Error creating LiveLink: $e');
+      // Modify this condition to not reference courseId
+      if (e.toString().contains("Batch not found")) {
+        throw Exception('Batch ID $batchId not found. Please verify.');
+      } else {
+        throw Exception('Failed to create LiveLink: $e');
+      }
     }
   }
-}
 
   Future<void> AdminupdateLive(
-      int batchId, String liveLink, DateTime startTime) async {
+    int batchId,
+    String liveLink,
+    DateTime startTime,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
 
     try {
       await _apiService.AdminupdateLIveAPI(
-          _token!, batchId, liveLink, startTime);
+        _token!,
+        batchId,
+        liveLink,
+        startTime,
+      );
       await AdminfetchLiveAdmin(
-          batchId); // Refresh the course list after update
+        batchId,
+      ); // Refresh the course list after update
     } catch (e) {
       print('Error updating course: $e');
       throw Exception('Failed to update course');
@@ -1160,19 +1220,23 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
   }
 
   Future<void> AdmindeleteLiveprovider(int courseId, int batchId) async {
-  if (_token == null || _token!.isEmpty) {
-    throw Exception('Invalid or missing token');
+    if (_token == null || _token!.isEmpty) {
+      throw Exception('Invalid or missing token');
+    }
+    try {
+      // Fix: Change parameter order to match API expectation
+      final result = await _apiService.AdmindeleteAdminLive(
+        batchId,
+        courseId,
+        _token!,
+      );
+      print("Delete result: $result");
+      notifyListeners();
+    } catch (e) {
+      print('Error in provider while deleting: $e');
+      rethrow;
+    }
   }
-  try {
-    // Fix: Change parameter order to match API expectation
-    final result = await _apiService.AdmindeleteAdminLive(batchId, courseId, _token!);
-    print("Delete result: $result");
-    notifyListeners();
-  } catch (e) {
-    print('Error in provider while deleting: $e');
-    rethrow;
-  }
-}
 
   Future<void> AdminfetchCourseCountsProvider() async {
     _isLoading = true;
@@ -1190,7 +1254,9 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
   }
 
   Future<void> AdminfetchallteachersBatchProvider(
-      int courseId, int batchId) async {
+    int courseId,
+    int batchId,
+  ) async {
     if (_token == null) throw Exception('Token is missing');
 
     try {
@@ -1220,12 +1286,14 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
       if (success) {
         Navigator.pop(context); // Close the email input dialog
         ForgotPasswordHandler.showOtpPopup(
-            context, email); // Open the OTP dialog
+          context,
+          email,
+        ); // Open the OTP dialog
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     } finally {
       isLoading = false;
       notifyListeners();
@@ -1233,17 +1301,21 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
   }
 
   /// Resets password and navigates to login page
-  Future<void> resetPassword(String email, String otp, String newPassword,
-      BuildContext context) async {
+  Future<void> resetPassword(
+    String email,
+    String otp,
+    String newPassword,
+    BuildContext context,
+  ) async {
     try {
       isLoading = true;
       notifyListeners();
 
       bool success = await _apiService.resetPassword(email, otp, newPassword);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Password Reset Successfully!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Password Reset Successfully!')));
 
         Navigator.pushAndRemoveUntil(
           context,
@@ -1252,9 +1324,9 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     } finally {
       isLoading = false;
       notifyListeners();
@@ -1281,7 +1353,7 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
     }
   }
 
-   Future<void> adminApprovelessonsprovider({
+  Future<void> adminApprovelessonsprovider({
     required int lessonId,
     required String status,
   }) async {
@@ -1290,8 +1362,8 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
     try {
       final isSuccess = await _apiService.adminApprovependinglesson(
         token: _token!,
-      lessonId: lessonId,
-      status: status,
+        lessonId: lessonId,
+        status: status,
       );
 
       if (isSuccess) {
@@ -1304,7 +1376,7 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
     }
   }
 
-   Future<void> adminApproveassignmentprovider({
+  Future<void> adminApproveassignmentprovider({
     required int assignmentId,
     required String status,
   }) async {
@@ -1313,8 +1385,8 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
     try {
       final isSuccess = await _apiService.adminApprovependingassignment(
         token: _token!,
-      assignmentId: assignmentId,
-      status: status,
+        assignmentId: assignmentId,
+        status: status,
       );
 
       if (isSuccess) {
@@ -1327,7 +1399,7 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
     }
   }
 
-   Future<void> adminApprovequizprovider({
+  Future<void> adminApprovequizprovider({
     required int quizId,
     required String status,
   }) async {
@@ -1336,8 +1408,8 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
     try {
       final isSuccess = await _apiService.adminApprovependingquiz(
         token: _token!,
-      quizId: quizId,
-      status: status,
+        quizId: quizId,
+        status: status,
       );
 
       if (isSuccess) {
@@ -1354,46 +1426,46 @@ Future<void> refreshQuizzes(int courseId, int moduleId) async {
   Future<void> Adminfetchleaveprovider() async {
     if (_token == null) throw Exception('Token is missing');
     try {
-      _leave = await _apiService.AdminfetchgetAllLeaveRequestssAPI(_token!); // Fetch courses correctly
-
-      // Print the fetched courses to the terminal
-      print('Fetched courses: $_course');
-
-      notifyListeners(); // Notify listeners that courses are fetched
+      _leave = await _apiService.AdminfetchgetAllLeaveRequestssAPI(_token!);
+      // Print the fetched leave requests to the terminal
+      print('Fetched leave requests: $_leave'); // Fixed to print _leave
+      notifyListeners(); // Notify listeners that leave requests are fetched
     } catch (e) {
-      print('Error fetching courses: $e');
+      print('Error fetching leave requests: $e');
     }
   }
 
-Future<void> adminApproveleaveprovider({
-  required int leaveId,
-  required String status,
-}) async {
-  if (_token == null) throw Exception('Token is missing');
+  Future<void> adminApproveleaveprovider({
+    required int leaveId,
+    required String status,
+  }) async {
+    if (_token == null) throw Exception('Token is missing');
 
-  try {
-    final isSuccess = await _apiService.adminApprovependingleave(
-      token: _token!,
-      leaveId: leaveId, // Check this is being sent correctly
-      status: status,
-    );
+    try {
+      final isSuccess = await _apiService.adminApprovependingleave(
+        token: _token!,
+        leaveId: leaveId, // Check this is being sent correctly
+        status: status,
+      );
 
-    if (isSuccess) {
-      print('Leave request processed successfully');
-      notifyListeners();
-    } else {
-      print('Failed to process leave request');
+      if (isSuccess) {
+        print('Leave request processed successfully');
+        notifyListeners();
+      } else {
+        print('Failed to process leave request');
+      }
+    } catch (e) {
+      print('Error processing leave approval/rejection: $e');
+      rethrow;
     }
-  } catch (e) {
-    print('Error processing leave approval/rejection: $e');
-    rethrow;
   }
-}
 
   Future<void> Adminfetchbugs() async {
     if (_token == null) throw Exception('Token is missing');
     try {
-      _bug = await _apiService.AdminfetchgetAllBugsAPI(_token!); // Fetch courses correctly
+      _bug = await _apiService.AdminfetchgetAllBugsAPI(
+        _token!,
+      ); // Fetch courses correctly
 
       // Print the fetched courses to the terminal
       print('Fetched bugs: $_course');
@@ -1404,4 +1476,117 @@ Future<void> adminApproveleaveprovider({
     }
   }
 
+  Future<void> manageStudentAccess({
+    required int studentId,
+    required int batchId,
+    required String action,
+  }) async {
+    if (_token == null) throw Exception('Token is missing');
+    try {
+      final isSuccess = await _apiService.manageStudentAccessAPI(
+        token: _token!,
+        studentId: studentId,
+        batchId: batchId,
+        action: action,
+      );
+      if (isSuccess) {
+        print('Student access updated successfully');
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error managing student access: $e');
+      rethrow; // Rethrow to handle in UI
+    }
+  }
+
+  List<AttendanceHistory> _attendanceHistory = [];
+
+  List<AttendanceHistory> get attendanceHistory => _attendanceHistory;
+
+  Future<void> fetchAttendanceHistoryProvider(int studentId) async {
+    if (_token == null) throw Exception('Token is missing');
+
+    try {
+      final response = await _apiService.fetchAttendanceHistory(
+        studentId,
+        _token!,
+      );
+
+      _attendanceHistory = response;
+      print('Fetched attendance history: $_attendanceHistory');
+      print('Number of records: ${_attendanceHistory.length}');
+
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching attendance history: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateStudentAttendance({
+    required int attendanceId,
+    required String status,
+  }) async {
+    if (_token == null) throw Exception('Token is missing');
+
+    try {
+      // Call API to update attendance
+      await _apiService.updateStudentAttendance(_token!, attendanceId, status);
+
+      // Update local list
+      final index = _attendanceHistory.indexWhere(
+        (att) => att.id == attendanceId,
+      );
+      if (index != -1) {
+        // Create a new instance with updated status
+        final updatedAttendance = AttendanceHistory(
+          id: _attendanceHistory[index].id,
+          studentId: _attendanceHistory[index].studentId,
+          batchId: _attendanceHistory[index].batchId,
+          date: _attendanceHistory[index].date,
+          status: status,
+          createdAt: _attendanceHistory[index].createdAt,
+          updatedAt:
+              DateTime.now().toIso8601String(), // Update with current timestamp
+          studentBatch: _attendanceHistory[index].studentBatch,
+        );
+
+        _attendanceHistory[index] = updatedAttendance;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating attendance: $e');
+      rethrow;
+    }
+  }
+
+  List<Transaction> _transactions = [];
+  List<Transaction> get transactions => _transactions;
+
+  Future<void> fetchStudentTransactions({
+    required int studentId,
+    String? token,
+  }) async {
+    if (token != null) _token = token;
+
+    if (_token == null) {
+      throw Exception('Token is missing');
+    }
+
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      _transactions = await _apiService.fetchTransactions(_token!, studentId);
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
 }

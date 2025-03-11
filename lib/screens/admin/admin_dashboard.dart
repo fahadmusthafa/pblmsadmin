@@ -4,13 +4,13 @@ import 'package:pblmsadmin/screens/admin/batch_management/add_teachertobatch_cou
 import 'package:pblmsadmin/screens/admin/batch_management/admin_addtobatch_course.dart';
 import 'package:pblmsadmin/screens/admin/batch_management/admin_live_management.dart';
 import 'package:pblmsadmin/screens/admin/course_management/admin_add_course.dart';
+import 'package:pblmsadmin/screens/admin/course_management/admin_course_batch.dart';
 import 'package:pblmsadmin/screens/admin/course_management/admin_see_all_users.dart';
 import 'package:pblmsadmin/screens/admin/widgets/bottom.dart';
 import 'package:pblmsadmin/screens/admin/widgets/dashboard.dart';
 import 'package:pblmsadmin/screens/admin/widgets/searchfiled.dart';
 import 'package:pblmsadmin/screens/admin/widgets/sidebarbutton.dart';
 import 'package:pblmsadmin/screens/admin/widgets/usercard.dart';
-
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -20,7 +20,8 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  String currentRoute = 'Dashboard';
+  String currentRoute = 'CourseManagement';
+  bool isCourseExpanded = false;
   TextEditingController searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -37,34 +38,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.grey[200],
-      appBar: isLargeScreen
-          ? null
-          : AppBar(
-              title: Text(currentRoute),
-              leading: IconButton(
-                icon: Icon(Icons.menu),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+      appBar:
+          isLargeScreen
+              ? null
+              : AppBar(
+                title: Text(currentRoute),
+                leading: IconButton(
+                  icon: Icon(Icons.menu),
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
               ),
-            ),
-      drawer: isLargeScreen
-          ? null
-          : Drawer(
-              child: Sidebar(
-                isLargeScreen: isLargeScreen,
-                onNavigate: navigateTo,
-                searchController: searchController,
-                currentRoute: currentRoute,
+      drawer:
+          isLargeScreen
+              ? null
+              : Drawer(
+                child: Sidebar(
+                  isLargeScreen: isLargeScreen,
+                  onNavigate: navigateTo,
+                  searchController: searchController,
+                  currentRoute: currentRoute,
+                  isCourseExpanded: isCourseExpanded,
+                  toggleCourseExpand: () {
+                    setState(() {
+                      isCourseExpanded = !isCourseExpanded;
+                    });
+                  },
+                ),
               ),
-            ),
       body: Row(
         children: [
           if (isLargeScreen)
-  
             Sidebar(
               isLargeScreen: isLargeScreen,
               onNavigate: navigateTo,
               searchController: searchController,
               currentRoute: currentRoute,
+              isCourseExpanded: isCourseExpanded,
+              toggleCourseExpand: () {
+                setState(() {
+                  isCourseExpanded = !isCourseExpanded;
+                });
+              },
             ),
           Expanded(
             child: ContentArea(
@@ -73,7 +87,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               searchController: searchController,
             ),
           ),
-        
         ],
       ),
     );
@@ -85,12 +98,17 @@ class Sidebar extends StatelessWidget {
   final TextEditingController searchController;
   final bool isLargeScreen;
   final String currentRoute;
+  final bool isCourseExpanded;
+  final VoidCallback toggleCourseExpand;
 
-  const Sidebar({super.key, 
+  const Sidebar({
+    super.key,
     required this.onNavigate,
     required this.searchController,
     required this.isLargeScreen,
     required this.currentRoute,
+    required this.isCourseExpanded,
+    required this.toggleCourseExpand,
   });
 
   @override
@@ -114,22 +132,23 @@ class Sidebar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AdminUserCard() ,
-                              const SizedBox(height: 20),
+                    AdminUserCard(),
+                    const SizedBox(height: 20),
                     AdminSearchField(searchController: searchController),
                     const SizedBox(height: 40),
                     Container(
                       constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.5,
+                        maxHeight: MediaQuery.of(context).size.height * 0.7,
                       ),
                       child: AdminMainMenu(
                         isLargeScreen: isLargeScreen,
                         onNavigate: onNavigate,
                         currentRoute: currentRoute,
+                        isCourseExpanded: isCourseExpanded,
+                        toggleCourseExpand: toggleCourseExpand,
                       ),
                     ),
-                    const SizedBox(height: 30),
-   
+                    const SizedBox(height: 25),
                     AdminBottom(
                       onMenuItemSelected: onNavigate,
                       isLargeScreen: isLargeScreen,
@@ -145,13 +164,13 @@ class Sidebar extends StatelessWidget {
   }
 }
 
-
 class ContentArea extends StatelessWidget {
   final String currentRoute;
   final TextEditingController searchController;
   final bool isLargeScreen;
 
-  const ContentArea({super.key, 
+  const ContentArea({
+    super.key,
     required this.currentRoute,
     required this.searchController,
     required this.isLargeScreen,
@@ -163,45 +182,45 @@ class ContentArea extends StatelessWidget {
       padding: EdgeInsets.all(0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          
-          Expanded(child: _buildContent()),
-        ],
+        children: [Expanded(child: _buildContent())],
       ),
     );
   }
 
   Widget _buildContent() {
-  switch (currentRoute) {
-    case 'Course':
-      return AdminAddCourse();
-    case 'User':
-      return UsersTabView();
-    case 'Students':
-      return AdminAddStudent();
-    case 'Live':
-      return AdminAddLiveCourse();
-    case 'Teachers': 
-      return AdminAddTeacher();
+    switch (currentRoute) {
+      case 'CourseManagement':
+        return AdminAddCourse();
+      case 'BatchManagement':
+        return AdminCourseBatchScreen();
+      case 'User':
+        return UsersTabView();
+      case 'Live':
+        return AdminAddLiveCourse();
+      case 'Students':
+        return AdminAddStudent();
       case 'Grivenece':
-      return AdminLeaveRequestScreen();
-    case 'Dashboard':
-    default:
-      return AdminAddCourse();
+        return AdminLeaveRequestScreen();
+      default:
+        return AdminAddCourse();
+    }
   }
-}
-
 }
 
 class AdminMainMenu extends StatelessWidget {
   final Function(String) onNavigate;
   final bool isLargeScreen;
   final String currentRoute;
+  final bool isCourseExpanded;
+  final VoidCallback toggleCourseExpand;
 
-  const AdminMainMenu({super.key, 
+  const AdminMainMenu({
+    super.key,
     required this.onNavigate,
     required this.isLargeScreen,
     required this.currentRoute,
+    required this.isCourseExpanded,
+    required this.toggleCourseExpand,
   });
 
   @override
@@ -227,18 +246,60 @@ class AdminMainMenu extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AdminSidebarButton(
-              icon: Icons.dashboard,
-              text: 'Dashboard',
-              onTap: () => onNavigate('Dashboard'),
-              selected: currentRoute == 'Dashboard',
+            // Course Management Dropdown
+            InkWell(
+              onTap: toggleCourseExpand,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.book, color: Colors.blue, size: 24),
+                    SizedBox(width: 12),
+                    Text(
+                      'Course Management',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Spacer(),
+                    Icon(
+                      isCourseExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      color: Colors.black54,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            AdminSidebarButton(
-              icon: Icons.book,
-              text: 'Course Management',
-              onTap: () => onNavigate('Course'),
-              selected: currentRoute == 'Course',
-            ),
+
+            // Dropdown items
+            if (isCourseExpanded) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 24),
+                child: AdminSidebarButton(
+                  icon: Icons.book_online,
+                  text: 'Course Management',
+                  onTap: () => onNavigate('CourseManagement'),
+                  selected: currentRoute == 'CourseManagement',
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 24),
+                child: AdminSidebarButton(
+                  icon: Icons.groups,
+                  text: 'Batch Management',
+                  onTap: () => onNavigate('BatchManagement'),
+                  selected: currentRoute == 'BatchManagement',
+                ),
+              ),
+            ],
+
             AdminSidebarButton(
               icon: Icons.live_tv,
               text: 'Live Management',
@@ -256,11 +317,6 @@ class AdminMainMenu extends StatelessWidget {
               text: 'User Management',
               onTap: () => onNavigate('User'),
               selected: currentRoute == 'User',
-            ), AdminSidebarButton(
-              icon: Icons.person_pin,
-              text: 'Teacher Management',
-              onTap: () => onNavigate('Teachers'),
-              selected: currentRoute == 'Teachers',
             ),
             AdminSidebarButton(
               icon: Icons.person_pin,

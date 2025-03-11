@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:pblmsadmin/models/admin_model.dart';
 import 'package:pblmsadmin/provider/authprovider.dart';
 import 'package:pblmsadmin/screens/admin/course_management/asignment_submission.dart';
-import 'package:pblmsadmin/screens/admin/course_management/quiz.dart';
 import 'package:pblmsadmin/screens/admin/course_management/quiz_submission.dart';
+import 'package:pblmsadmin/screens/admin/widgets/videoplayer.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 
 class AdminModuleAddScreen extends StatefulWidget {
   final int courseId;
-  final int batchId;
   final String courseName;
 
   const AdminModuleAddScreen({
     super.key,
     required this.courseId,
-    required this.batchId,
     required this.courseName,
   });
 
@@ -34,9 +34,9 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
   int? selectedQuizId;
   int? selectedAssignmentId;
 
-  final primaryBlue = Colors.blue;
-  final mediumBlue = Colors.blue.shade700;
-  final lightBlue = Colors.blue.shade50;
+  final primaryBlue = Color(0xFF2E7D32);
+  final mediumBlue = Color.fromARGB(255, 41, 147, 46);
+  final lightBlue = Color.fromARGB(255, 155, 246, 159);
 
   @override
   void dispose() {
@@ -75,21 +75,21 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
     await _loadModules();
 
     // Load batch data
-    final adminProvider = Provider.of<AdminAuthProvider>(
-      context,
-      listen: false,
-    );
-    await adminProvider.AdminfetchallusersBatchProvider(
-      widget.courseId,
-      widget.batchId,
-    );
+    // final adminProvider = Provider.of<AdminAuthProvider>(
+    //   context,
+    //   listen: false,
+    // );
+    // await adminProvider.AdminfetchallusersBatchProvider(
+    //   widget.courseId,
+    //   widget.batchId,
+    // );
   }
 
   Future<void> _loadModules() async {
     await Provider.of<AdminAuthProvider>(
       context,
       listen: false,
-    ).AdminfetchModulesForCourseProvider(widget.courseId, widget.batchId);
+    ).AdminfetchModulesForCourseProvider(widget.courseId);
   }
 
   Future<void> _loadLessonsAndAssignmentsquiz() async {
@@ -98,7 +98,6 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
 
       await provider.AdminfetchLessonsForModuleProvider(
         widget.courseId,
-        widget.batchId,
         selectedModule!.moduleId,
       );
 
@@ -269,7 +268,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                                   }
                                 },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.lightBlue,
+                          backgroundColor: Color(0xFF2E7D32),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child:
@@ -309,6 +308,9 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
     );
     final TextEditingController editVideoLinkController = TextEditingController(
       text: lesson.videoLink,
+    );
+    final TextEditingController editPdfUrlController = TextEditingController(
+      text: lesson.pdfPath ?? '',
     );
     bool isUpdating = false;
 
@@ -358,6 +360,16 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                       controller: editVideoLinkController,
                       decoration: InputDecoration(
                         labelText: 'Video Link (optional)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: editPdfUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'PDF URL (optional)',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -419,11 +431,12 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
 
                                     await provider.AdminUpdatelessonprovider(
                                       widget.courseId,
-                                      widget.batchId,
                                       editTitleController.text.trim(),
                                       editContentController.text.trim(),
                                       lesson.lessonId,
                                       selectedModule!.moduleId,
+                                      editVideoLinkController.text.trim(),
+                                      editPdfUrlController.text.trim(),
                                     );
 
                                     Navigator.of(context).pop();
@@ -452,7 +465,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                                   }
                                 },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.lightBlue,
+                          backgroundColor: Color(0xFF2E7D32),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child:
@@ -589,7 +602,6 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
 
                                     await provider.AdminUpdatemoduleprovider(
                                       widget.courseId,
-                                      widget.batchId,
                                       editTitleController.text.trim(),
                                       editContentController.text.trim(),
                                       module.moduleId,
@@ -620,7 +632,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                                   }
                                 },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: Color(0xFF2E7D32),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child:
@@ -753,7 +765,6 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                                       titleController.text.trim(),
                                       contentController.text.trim(),
                                       widget.courseId,
-                                      widget.batchId,
                                     );
 
                                     Navigator.of(context).pop();
@@ -781,7 +792,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                                   }
                                 },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: Color(0xFF2E7D32),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child:
@@ -858,9 +869,9 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                border: Border.all(color: lightBlue),
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.blue.shade50.withOpacity(0.5),
+                color: Color.fromARGB(255, 198, 247, 201),
               ),
               child: Row(
                 children: [
@@ -879,7 +890,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                       isExpanded
                           ? Icons.keyboard_arrow_up
                           : Icons.keyboard_arrow_down,
-                      color: Colors.blue,
+                      color: Color(0xFF2E7D32),
                     ),
                 ],
               ),
@@ -918,7 +929,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                       padding: const EdgeInsets.all(16),
                       color:
                           isSelected
-                              ? Colors.blue.shade50.withOpacity(0.3)
+                              ? Color.fromARGB(255, 198, 255, 201)
                               : null,
                       child: Row(
                         children: [
@@ -928,8 +939,8 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                             decoration: BoxDecoration(
                               color:
                                   isSelected
-                                      ? Colors.blue.shade100
-                                      : Colors.blue.shade50,
+                                      ? Colors.green.shade100
+                                      : Colors.green.shade50,
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -939,8 +950,8 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                                   fontWeight: FontWeight.bold,
                                   color:
                                       isSelected
-                                          ? Colors.blue.shade900
-                                          : Colors.blue.shade700,
+                                          ? Colors.green.shade900
+                                          : Colors.green.shade700,
                                   fontSize: 20,
                                 ),
                               ),
@@ -958,7 +969,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                                     fontWeight: FontWeight.bold,
                                     color:
                                         isSelected
-                                            ? Colors.blue.shade900
+                                            ? Colors.green.shade900
                                             : Colors.black87,
                                   ),
                                 ),
@@ -980,7 +991,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                           if (isSelected)
                             Icon(
                               Icons.check_circle,
-                              color: Colors.blue.shade700,
+                              color: Colors.green.shade700,
                               size: 28,
                             ),
                         ],
@@ -1022,7 +1033,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
+                    color: Colors.green.shade900,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1083,7 +1094,6 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
         final provider = Provider.of<AdminAuthProvider>(context, listen: false);
         await provider.admindeletemoduleprovider(
           widget.courseId,
-          widget.batchId,
           module.moduleId,
         );
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1195,35 +1205,35 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                 _buildAssignmentsList(assignments),
 
               // Quizzes Section
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Icon(Icons.quiz, size: 24, color: primaryBlue),
-                  const SizedBox(width: 12),
-                  Text(
-                    'QUIZZES',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (quiz.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'No quizzes available for this module',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                  ),
-                )
-              else
-                _buildQuizList(quiz),
+              // const SizedBox(height: 32),
+              // Row(
+              //   children: [
+              //     Icon(Icons.quiz, size: 24, color: primaryBlue),
+              //     const SizedBox(width: 12),
+              //     Text(
+              //       'QUIZZES',
+              //       style: TextStyle(
+              //         fontSize: 16,
+              //         fontWeight: FontWeight.w600,
+              //         color: Colors.grey[700],
+              //         letterSpacing: 1.2,
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // const SizedBox(height: 16),
+              // if (quiz.isEmpty)
+              //   Center(
+              //     child: Padding(
+              //       padding: const EdgeInsets.all(16.0),
+              //       child: Text(
+              //         'No quizzes available for this module',
+              //         style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              //       ),
+              //     ),
+              //   )
+              // else
+              //   _buildQuizList(quiz),
             ],
           ),
         );
@@ -1707,6 +1717,52 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                       lesson.content,
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        if (lesson.videoLink != null &&
+                            lesson.videoLink.isNotEmpty)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.play_circle_outline),
+                              label: Text("Watch Video"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryBlue,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed:
+                                  () => _openVideoPlayer(context, lesson),
+                            ),
+                          ),
+                        if (lesson.videoLink != null &&
+                            lesson.videoLink.isNotEmpty &&
+                            lesson.pdfPath != null &&
+                            lesson.pdfPath!.isNotEmpty)
+                          SizedBox(width: 12),
+                        if (lesson.pdfPath != null &&
+                            lesson.pdfPath!.isNotEmpty)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.picture_as_pdf),
+                              label: Text("View PDF"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.shade700,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed:
+                                  () => _openPdfDocument(context, lesson),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ],
               ),
@@ -1715,6 +1771,56 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
         );
       },
     );
+  }
+
+  // Function to open video player
+  void _openVideoPlayer(BuildContext context, AdminLessonmodel lesson) async {
+    if (lesson.videoLink.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Video link is not available')));
+      return;
+    }
+
+    // Check if video link is YouTube or direct URL
+    if (lesson.videoLink.contains('youtube.com') ||
+        lesson.videoLink.contains('youtu.be')) {
+      // Launch YouTube video in browser or YouTube app
+      if (await canLaunch(lesson.videoLink)) {
+        await launch(lesson.videoLink);
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not open video link')));
+      }
+    } else {
+      // For other video links, you might want to use a video player package
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoPlayerScreen(url: lesson.videoLink),
+        ),
+      );
+    }
+  }
+
+  // Function to open PDF document
+  void _openPdfDocument(BuildContext context, AdminLessonmodel lesson) async {
+    if (lesson.pdfPath == null || lesson.pdfPath!.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('PDF is not available')));
+      return;
+    }
+
+    // For Google Drive links, open in browser or appropriate app
+    if (await canLaunch(lesson.pdfPath!)) {
+      await launch(lesson.pdfPath!);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open PDF link')));
+    }
   }
 
   void _showApprovalDialog(BuildContext context, AdminLessonmodel lesson) {
@@ -1830,7 +1936,6 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
           listen: false,
         ).admindeletelessonprovider(
           widget.courseId,
-          widget.batchId,
           selectedModule!.moduleId,
           lesson.lessonId,
         );
@@ -2071,7 +2176,8 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                               ),
                             );
                           },
-                          icon: Icon(Icons.visibility, size: 20),
+                          icon: Icon(Icons.visibility, size: 20,
+                          color: primaryBlue,),
                           label: Text('View Submissions'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: primaryBlue,
@@ -2215,7 +2321,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue,
+        backgroundColor: Color(0xFF2E7D32),
         title: Text('Module Management', style: TextStyle(color: Colors.white)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
@@ -2227,7 +2333,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [lightBlue, Colors.white],
+            colors: [Colors.white, Colors.white],
           ),
         ),
         child: LayoutBuilder(
@@ -2353,17 +2459,6 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                   child: FloatingActionButton.small(
                     heroTag: 'createQuiz',
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => QuizCreatorScreen(
-                                moduleId: selectedModule!.moduleId,
-                                courseId: widget.courseId,
-                                batchId: widget.batchId,
-                              ),
-                        ),
-                      );
                       _toggleFabMenu();
                     },
                     backgroundColor: Colors.orange,
@@ -2425,13 +2520,12 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
                         builder:
                             (context) => _CreateLessonDialog(
                               courseId: widget.courseId,
-                              batchId: widget.batchId,
                               moduleId: selectedModule!.moduleId,
                             ),
                       );
                       _toggleFabMenu();
                     },
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.brown,
                     child: const Icon(
                       Icons.note_add,
                       color: Colors.white,
@@ -2447,7 +2541,7 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
           FloatingActionButton(
             heroTag: 'mainFab',
             onPressed: _toggleFabMenu,
-            backgroundColor: Colors.blue,
+            backgroundColor: Colors.green,
             child: AnimatedIcon(
               icon: AnimatedIcons.menu_close,
               progress: _animationController,
@@ -2462,13 +2556,11 @@ class _AdminModuleAddScreenState extends State<AdminModuleAddScreen>
 
 class _CreateLessonDialog extends StatefulWidget {
   final int courseId;
-  final int batchId;
   final int moduleId;
 
   const _CreateLessonDialog({
     super.key,
     required this.courseId,
-    required this.batchId,
     required this.moduleId,
   });
 
@@ -2480,6 +2572,8 @@ class _CreateLessonDialogState extends State<_CreateLessonDialog> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController contentController = TextEditingController();
   final TextEditingController videoLinkController = TextEditingController();
+  final TextEditingController pdfUrlController =
+      TextEditingController(); // Added PDF URL controller
   bool isCreatingLesson = false;
 
   @override
@@ -2487,6 +2581,7 @@ class _CreateLessonDialogState extends State<_CreateLessonDialog> {
     titleController.dispose();
     contentController.dispose();
     videoLinkController.dispose();
+    pdfUrlController.dispose(); // Dispose PDF URL controller
     super.dispose();
   }
 
@@ -2505,11 +2600,11 @@ class _CreateLessonDialogState extends State<_CreateLessonDialog> {
         listen: false,
       ).Admincreatelessonprovider(
         widget.courseId,
-        widget.batchId,
         widget.moduleId,
         contentController.text,
         titleController.text,
         videoLinkController.text,
+        pdfUrlController.text, // Added PDF URL parameter
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2528,8 +2623,6 @@ class _CreateLessonDialogState extends State<_CreateLessonDialog> {
 
   @override
   Widget build(BuildContext context) {
-    bool isCreatingLesson = false; // Local state for loading indicator
-
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
@@ -2569,6 +2662,17 @@ class _CreateLessonDialogState extends State<_CreateLessonDialog> {
               controller: videoLinkController,
               decoration: InputDecoration(
                 labelText: 'Video Link (optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              // Added PDF URL field
+              controller: pdfUrlController,
+              decoration: InputDecoration(
+                labelText: 'PDF URL (optional)',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -2627,7 +2731,6 @@ class _CreateLessonDialogState extends State<_CreateLessonDialog> {
                               listen: false,
                             ).AdminfetchLessonsForModuleProvider(
                               widget.courseId,
-                              widget.batchId,
                               widget.moduleId,
                             );
 
@@ -2651,7 +2754,7 @@ class _CreateLessonDialogState extends State<_CreateLessonDialog> {
                           }
                         },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.lightBlue,
+                  backgroundColor: Color(0xFF2E7D32),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child:
@@ -2834,7 +2937,7 @@ class _CreateAssignmentDialogState extends State<_CreateAssignmentDialog> {
               child: ElevatedButton(
                 onPressed: isCreatingAssignment ? null : _createAssignment,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.lightBlue,
+                  backgroundColor: Color(0xFF2E7D32),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child:
@@ -2936,7 +3039,7 @@ class BatchStatusDisplay extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.blue[50],
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            border: Border.all(color: Colors.green.withOpacity(0.3)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2946,14 +3049,14 @@ class BatchStatusDisplay extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
+                  color: Colors.green[700],
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Please check if the batch is assigned\nor try again later.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.blue[900]),
+                style: TextStyle(fontSize: 14, color: Colors.green[900]),
               ),
             ],
           ),
@@ -2965,7 +3068,7 @@ class BatchStatusDisplay extends StatelessWidget {
   }
 
   Widget _buildStudentsSection(BatchStudentModel batchData) {
-    final primaryBlue = Colors.blue;
+    final primaryBlue = Color(0xFF2E7D32);
     final mediumBlue = Colors.blue.shade700;
     final lightBlue = Colors.blue.shade50;
 
@@ -3107,17 +3210,17 @@ class BatchStatusDisplay extends StatelessWidget {
 
                             return Container(
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50.withOpacity(0.3),
+                                color: Colors.green.shade50.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.blue.shade700.withOpacity(0.2),
+                                  color: Colors.green.shade700.withOpacity(0.2),
                                 ),
                               ),
                               padding: const EdgeInsets.all(16),
                               child: Row(
                                 children: [
                                   CircleAvatar(
-                                    backgroundColor: Colors.blue,
+                                    backgroundColor: Colors.green,
                                     radius: 20,
                                     child: Text(
                                       student.name[0].toUpperCase(),

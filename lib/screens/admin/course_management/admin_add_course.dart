@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pblmsadmin/provider/authprovider.dart';
 import 'package:pblmsadmin/screens/admin/course_management/admin_course_batch.dart';
+import 'package:pblmsadmin/screens/admin/course_management/admin_module_add.dart';
 import 'package:provider/provider.dart';
 
 class AdminAddCourse extends StatefulWidget {
@@ -242,8 +243,9 @@ class _AdminAddCourseState extends State<AdminAddCourse> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => AdminCourseBatchScreen(
+                                builder: (context) => AdminModuleAddScreen(
                                   courseId: course.courseId,
+                                  courseName: course.name, // Add the courseName parameter
                                 ),
                               ),
                             );
@@ -270,7 +272,7 @@ class _AdminAddCourseState extends State<AdminAddCourse> {
                                               topRight: Radius.circular(8),
                                             ),
                                             child: Image.asset(
-                                              'assets/course.jpg', // Placeholder image
+                                              'assets/image.jpg', // Placeholder image
                                               width: double.infinity,
                                               height: double.infinity,
                                               fit: BoxFit.cover,

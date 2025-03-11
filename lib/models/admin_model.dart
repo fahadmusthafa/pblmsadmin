@@ -1,3 +1,4 @@
+import 'dart:convert';
 
 class Admincoursemodel {
   final int courseId;
@@ -11,22 +12,21 @@ class Admincoursemodel {
   });
 
   factory Admincoursemodel.fromJson(Map<String, dynamic> json) {
-  return Admincoursemodel(
-    courseId: json['courseId'],
-    name: json['title'], // Changed from 'name' to 'title' to match API response
-    description: json['description'],
-  );
-}
+    return Admincoursemodel(
+      courseId: json['courseId'],
+      name:
+          json['title'], // Changed from 'name' to 'title' to match API response
+      description: json['description'],
+    );
+  }
 }
 
 class AdminModulemodel {
-  final int batchId;
   final int moduleId;
   final String title;
   final String content;
 
   AdminModulemodel({
-    required this.batchId,
     required this.moduleId,
     required this.title,
     required this.content,
@@ -35,7 +35,6 @@ class AdminModulemodel {
   // Factory constructor to create a Course instance from JSON
   factory AdminModulemodel.fromJson(Map<String, dynamic> json) {
     return AdminModulemodel(
-      batchId: json['batchId'],
       moduleId: json['moduleId'],
       content: json['content'],
       title: json['title'],
@@ -47,22 +46,20 @@ class AdminLessonmodel {
   final int lessonId;
   final int moduleId;
   final int courseId;
-  final int batchId;
   final String title;
   final String content;
   final String videoLink;
-  final String? pdfPath; // Nullable
+  final String? pdfPath;
   final String status;
 
   AdminLessonmodel({
     required this.lessonId,
     required this.moduleId,
     required this.courseId,
-    required this.batchId,
     required this.title,
     required this.content,
     required this.videoLink,
-    this.pdfPath, // Nullable
+    this.pdfPath,
     required this.status,
   });
 
@@ -71,7 +68,6 @@ class AdminLessonmodel {
       lessonId: int.parse(json['lessonId']?.toString() ?? '0'),
       moduleId: int.parse(json['moduleId']?.toString() ?? '0'),
       courseId: int.parse(json['courseId']?.toString() ?? '0'),
-      batchId: int.parse(json['batchId']?.toString() ?? '0'),
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       videoLink: json['videoLink'] ?? '',
@@ -119,29 +115,81 @@ class AdminCourseBatch {
 }
 
 class AdminAllusersmodel {
+  final int userId;
+  final String profilePicture;
   final String name;
   final String email;
+  final String password;
   final String phoneNumber;
   final String role;
-  final int userId;
-  final String? registrationId;
+  final bool approved;
+  final String registrationId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
-  AdminAllusersmodel(
-      {required this.name,
-      required this.email,
-      required this.phoneNumber,
-      required this.role,
-      required this.userId,
-      required this.registrationId});
+  AdminAllusersmodel({
+    required this.userId,
+    required this.profilePicture,
+    required this.name,
+    required this.email,
+    required this.password,
+    required this.phoneNumber,
+    required this.role,
+    required this.approved,
+    required this.registrationId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
   factory AdminAllusersmodel.fromJson(Map<String, dynamic> json) {
     return AdminAllusersmodel(
-        name: json['name'],
-        email: json['email'],
-        phoneNumber: json['phoneNumber'],
-        role: json['role'],
-        userId: json['userId'],
-        registrationId: json['registrationId']);
+      userId: json['userId'],
+      profilePicture: json['profilePicture'],
+      name: json['name'],
+      email: json['email'],
+      password: json['password'],
+      phoneNumber: json['phoneNumber'],
+      role: json['role'],
+      approved: json['approved'],
+      registrationId: json['registrationId'],
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'profilePicture': profilePicture,
+      'name': name,
+      'email': email,
+      'password': password,
+      'phoneNumber': phoneNumber,
+      'role': role,
+      'approved': approved,
+      'registrationId': registrationId,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+}
+
+class AdminUserResponse {
+  final List<User> users;
+
+  AdminUserResponse({required this.users});
+
+  factory AdminUserResponse.fromJson(String source) {
+    final Map<String, dynamic> jsonData = json.decode(source);
+    final List<dynamic> userList = jsonData['users'];
+
+    return AdminUserResponse(
+      users: userList.map((user) => User.fromJson(user)).toList(),
+    );
+  }
+
+  String toJson() {
+    return json.encode({'users': users.map((user) => user.toJson()).toList()});
   }
 }
 
@@ -178,9 +226,10 @@ class AdminQuizModel {
       status: json['status'],
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
-      questions: (json['questions'] as List)
-          .map((question) => Question.fromJson(question))
-          .toList(),
+      questions:
+          (json['questions'] as List)
+              .map((question) => Question.fromJson(question))
+              .toList(),
     );
   }
 
@@ -214,9 +263,10 @@ class Question {
     return Question(
       questionId: json['questionId'],
       text: json['text'],
-      answers: (json['answers'] as List)
-          .map((answer) => Answer.fromJson(answer))
-          .toList(),
+      answers:
+          (json['answers'] as List)
+              .map((answer) => Answer.fromJson(answer))
+              .toList(),
     );
   }
 
@@ -287,9 +337,10 @@ class AssignmentModel {
       moduleId: json['moduleId'] ?? 0,
       title: json['title'] ?? '',
       description: json['description'] ?? '',
-      dueDate: json['dueDate'] != null
-          ? DateTime.parse(json['dueDate'])
-          : DateTime.now(),
+      dueDate:
+          json['dueDate'] != null
+              ? DateTime.parse(json['dueDate'])
+              : DateTime.now(),
       submissionLink: json['submissionLink'] ?? '',
       status: json['status'] ?? 'Pending',
     );
@@ -320,9 +371,12 @@ class BatchStudentModel {
       courseName: json['courseName'] as String,
       batchId: json['batchId'] as int,
       batchName: json['batchName'] as String,
-      students: (json['students'] as List<dynamic>)
-          .map((student) => Student.fromJson(student as Map<String, dynamic>))
-          .toList(),
+      students:
+          (json['students'] as List<dynamic>)
+              .map(
+                (student) => Student.fromJson(student as Map<String, dynamic>),
+              )
+              .toList(),
     );
   }
 }
@@ -331,11 +385,13 @@ class Student {
   final int studentId;
   final String name;
   final String email;
+  final String status;
 
   Student({
     required this.studentId,
     required this.name,
     required this.email,
+    required this.status,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -343,6 +399,7 @@ class Student {
       studentId: json['studentId'] as int,
       name: json['name'] as String,
       email: json['email'] as String,
+      status: json['status'] as String,
     );
   }
 
@@ -351,6 +408,7 @@ class Student {
       'studentId': studentId,
       'name': name,
       'email': email,
+      'status': status,
     };
   }
 }
@@ -461,10 +519,7 @@ class UserProfileResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'message': message,
-      'profile': profile.toJson(),
-    };
+    return {'message': message, 'profile': profile.toJson()};
   }
 }
 
@@ -515,6 +570,7 @@ class Submission {
   final DateTime updatedAt;
   final String studentName;
   final String studentEmail;
+  final String submissionLink;
 
   Submission({
     required this.submissionId,
@@ -527,6 +583,7 @@ class Submission {
     required this.updatedAt,
     required this.studentName,
     required this.studentEmail,
+    required this.submissionLink
   });
 
   factory Submission.fromJson(Map<String, dynamic> json) {
@@ -537,13 +594,17 @@ class Submission {
       status: json['status'] ?? '',
       content: json['content'] ?? '',
       submittedAt: DateTime.parse(
-          json['submittedAt'] ?? DateTime.now().toIso8601String()),
-      createdAt:
-          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt:
-          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+        json['submittedAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      ),
       studentName: json['Student']?['name'] ?? 'Unknown',
       studentEmail: json['Student']?['email'] ?? 'No email',
+      submissionLink:json['submissionLink']?? 0
     );
   }
 }
@@ -630,9 +691,10 @@ class CourseCountsResponse {
       batchCount: json['batchCount'],
       studentCount: json['studentCount'],
       teacherCount: json['teacherCount'],
-      detailedCounts: (json['detailedCounts'] as List)
-          .map((e) => DetailedCourse.fromJson(e))
-          .toList(),
+      detailedCounts:
+          (json['detailedCounts'] as List)
+              .map((e) => DetailedCourse.fromJson(e))
+              .toList(),
     );
   }
 }
@@ -662,11 +724,7 @@ class Batch {
   final String? batchName;
   final int studentCount;
 
-  Batch({
-    required this.batchId,
-    this.batchName,
-    required this.studentCount,
-  });
+  Batch({required this.batchId, this.batchName, required this.studentCount});
 
   factory Batch.fromJson(Map<String, dynamic> json) {
     return Batch(
@@ -701,9 +759,10 @@ class BatchTeacherModel {
       courseName: json['courseName'],
       batchId: json['batchId'],
       batchName: json['batchName'],
-      teachers: (json['teachers'] as List)
-          .map((teacher) => Teacher.fromJson(teacher))
-          .toList(),
+      teachers:
+          (json['teachers'] as List)
+              .map((teacher) => Teacher.fromJson(teacher))
+              .toList(),
     );
   }
 }
@@ -713,11 +772,7 @@ class Teacher {
   final String name;
   final String email;
 
-  Teacher({
-    required this.teacherId,
-    required this.name,
-    required this.email,
-  });
+  Teacher({required this.teacherId, required this.name, required this.email});
 
   factory Teacher.fromJson(Map<String, dynamic> json) {
     return Teacher(
@@ -742,10 +797,7 @@ class UserResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'message': message,
-      'user': user.toJson(),
-    };
+    return {'message': message, 'user': user.toJson()};
   }
 }
 
@@ -773,9 +825,10 @@ class User {
       name: json['name'],
       email: json['email'],
       role: json['role'],
-      courses: (json['courses'] as List)
-          .map((course) => Course.fromJson(course))
-          .toList(),
+      courses:
+          (json['courses'] as List)
+              .map((course) => Course.fromJson(course))
+              .toList(),
     );
   }
 
@@ -791,13 +844,17 @@ class User {
   }
 
   int get totalSubmittedAssignments {
-    return courses.fold(0,
-        (sum, course) => sum + (course.assignments?.submittedAssignments ?? 0));
+    return courses.fold(
+      0,
+      (sum, course) => sum + (course.assignments?.submittedAssignments ?? 0),
+    );
   }
 
   int get totalSubmittedQuizzes {
     return courses.fold(
-        0, (sum, course) => sum + (course.quizzes?.submittedQuizzes ?? 0));
+      0,
+      (sum, course) => sum + (course.quizzes?.submittedQuizzes ?? 0),
+    );
   }
 }
 
@@ -824,12 +881,14 @@ class Course {
       batchName: json['batchName'],
       courseId: json['courseId'],
       courseName: json['courseName'],
-      assignments: json.containsKey('assignments')
-          ? Assignments.fromJson(json['assignments'])
-          : null,
-      quizzes: json.containsKey('quizzes')
-          ? Quizzes.fromJson(json['quizzes'])
-          : null,
+      assignments:
+          json.containsKey('assignments')
+              ? Assignments.fromJson(json['assignments'])
+              : null,
+      quizzes:
+          json.containsKey('quizzes')
+              ? Quizzes.fromJson(json['quizzes'])
+              : null,
     );
   }
 
@@ -923,94 +982,198 @@ class LeaveRequest {
   });
 
   factory LeaveRequest.fromJson(Map<String, dynamic> json) => LeaveRequest(
-        leaveId: json["id"],
-        studentId: json["studentId"],
-        leaveDate: DateTime.parse(json["leaveDate"]),
-        reason: json["reason"],
-        status: json["status"],
-        createdAt: DateTime.parse(json["createdAt"]),
-        updatedAt: DateTime.parse(json["updatedAt"]),
-        student: Students.fromJson(json["student"]), // Fix class name
-      );
+    leaveId: json["id"],
+    studentId: json["studentId"],
+    leaveDate: DateTime.parse(json["leaveDate"]),
+    reason: json["reason"],
+    status: json["status"],
+    createdAt: DateTime.parse(json["createdAt"]),
+    updatedAt: DateTime.parse(json["updatedAt"]),
+    student: Students.fromJson(json["student"]), // Fix class name
+  );
 
   Map<String, dynamic> toJson() => {
-        "id": leaveId,
-        "studentId": studentId,
-        "leaveDate":
-            "${leaveDate.year.toString().padLeft(4, '0')}-${leaveDate.month.toString().padLeft(2, '0')}-${leaveDate.day.toString().padLeft(2, '0')}",
-        "reason": reason,
-        "status": status,
-        "createdAt": createdAt.toIso8601String(),
-        "updatedAt": updatedAt.toIso8601String(),
-        "student": student.toJson(),
-      };
+    "id": leaveId,
+    "studentId": studentId,
+    "leaveDate":
+        "${leaveDate.year.toString().padLeft(4, '0')}-${leaveDate.month.toString().padLeft(2, '0')}-${leaveDate.day.toString().padLeft(2, '0')}",
+    "reason": reason,
+    "status": status,
+    "createdAt": createdAt.toIso8601String(),
+    "updatedAt": updatedAt.toIso8601String(),
+    "student": student.toJson(),
+  };
 }
 
 class Students {
   int id;
   String name;
   String email;
-  int? registrationId; // Change to int? instead of String?
+  String? registrationId; // Changed from int? to String?
 
   Students({
     required this.id,
     required this.name,
     required this.email,
-    this.registrationId, // Nullable field
+    this.registrationId,
   });
 
   factory Students.fromJson(Map<String, dynamic> json) => Students(
-        id: json["id"],
-        name: json["name"],
-        email: json["email"],
-        registrationId: json["registrationId"], // Allow null values
-      );
+    id: json["id"],
+    name: json["name"],
+    email: json["email"],
+    registrationId:
+        json["registrationId"]?.toString(), // Convert to String or keep as null
+  );
 
   Map<String, dynamic> toJson() => {
-        "id": id,
-        "name": name,
-        "email": email,
-        "registrationId": registrationId, // Keep as null if not present
-      };
+    "id": id,
+    "name": name,
+    "email": email,
+    "registrationId": registrationId,
+  };
 }
 
-
 class Bug {
-    int id;
-    int userId;
-    String title;
-    String description;
-    String status;
-    DateTime createdAt;
-    DateTime updatedAt;
+  int id;
+  int userId;
+  String title;
+  String description;
+  String status;
+  DateTime createdAt;
+  DateTime updatedAt;
 
-    Bug({
-        required this.id,
-        required this.userId,
-        required this.title,
-        required this.description,
-        required this.status,
-        required this.createdAt,
-        required this.updatedAt,
-    });
+  Bug({
+    required this.id,
+    required this.userId,
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
-    factory Bug.fromJson(Map<String, dynamic> json) => Bug(
-        id: json["id"],
-        userId: json["userId"],
-        title: json["title"],
-        description: json["description"],
-        status: json["status"],
-        createdAt: DateTime.parse(json["createdAt"]),
-        updatedAt: DateTime.parse(json["updatedAt"]),
+  factory Bug.fromJson(Map<String, dynamic> json) => Bug(
+    id: json["id"],
+    userId: json["userId"],
+    title: json["title"],
+    description: json["description"],
+    status: json["status"],
+    createdAt: DateTime.parse(json["createdAt"]),
+    updatedAt: DateTime.parse(json["updatedAt"]),
+  );
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "userId": userId,
+    "title": title,
+    "description": description,
+    "status": status,
+    "createdAt": createdAt.toIso8601String(),
+    "updatedAt": updatedAt.toIso8601String(),
+  };
+}
+
+class AttendanceHistory {
+  final int id;
+  final int studentId;
+  final int batchId;
+  final String date;
+  final String status;
+  final String createdAt;
+  final String updatedAt;
+  final dynamic studentBatch;
+
+  AttendanceHistory({
+    required this.id,
+    required this.studentId,
+    required this.batchId,
+    required this.date,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.studentBatch,
+  });
+
+  factory AttendanceHistory.fromJson(String source) =>
+      AttendanceHistory.fromMap(json.decode(source));
+
+  factory AttendanceHistory.fromMap(Map<String, dynamic> map) {
+    return AttendanceHistory(
+      id: map['id'],
+      studentId: map['studentId'],
+      batchId: map['batchId'],
+      date: map['date'],
+      status: map['status'],
+      createdAt: map['createdAt'],
+      updatedAt: map['updatedAt'],
+      studentBatch: map['StudentBatch'],
     );
+  }
+}
 
-    Map<String, dynamic> toJson() => {
-        "id": id,
-        "userId": userId,
-        "title": title,
-        "description": description,
-        "status": status,
-        "createdAt": createdAt.toIso8601String(),
-        "updatedAt": updatedAt.toIso8601String(),
+class Transaction {
+  final int id;
+  final int studentId;
+  final String transactionId;
+  final double amountPaid;
+  final DateTime paymentDate;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  Transaction({
+    required this.id,
+    required this.studentId,
+    required this.transactionId,
+    required this.amountPaid,
+    required this.paymentDate,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory Transaction.fromJson(Map<String, dynamic> json) {
+    return Transaction(
+      id: json['id'] ?? 0,
+      studentId: json['studentId'] ?? 0,
+      transactionId: json['transactionId'] ?? '',
+      amountPaid: _parseDouble(json['amountPaid']),
+      paymentDate: _parseDateTime(json['paymentDate']),
+      status: json['status'] ?? 'unknown',
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
+    );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    try {
+      return value is DateTime ? value : DateTime.parse(value);
+    } catch (e) {
+      return DateTime.now();
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'studentId': studentId,
+      'transactionId': transactionId,
+      'amountPaid': amountPaid,
+      'paymentDate': paymentDate.toIso8601String(),
+      'status': status,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
+  }
 }

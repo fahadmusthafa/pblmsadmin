@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:pblmsadmin/models/admin_model.dart';
 
 class AdminAPI {
-  final String baseUrl = 'https://portfolixlms.onrender.com/api';
+  final String baseUrl = 'https://api.portfoliobuilders.in/api';
 
   Future<http.Response> loginAdminAPI(String email, String password) async {
     final url = Uri.parse('$baseUrl/superadmin/login');
@@ -161,9 +161,8 @@ class AdminAPI {
   Future<List<AdminModulemodel>> AdminfetchModulesForCourseAPI(
     String token,
     int courseId,
-    int batchId,
   ) async {
-    final url = Uri.parse('$baseUrl/admin/getAllModule/$courseId/$batchId');
+    final url = Uri.parse('$baseUrl/superadmin/getmodules/$courseId');
     try {
       final response = await http.get(
         url,
@@ -192,11 +191,10 @@ class AdminAPI {
   Future<String> AdmincreatemoduleAPI(
     String token,
     int courseId,
-    int batchId,
     String title,
     String content,
   ) async {
-    final url = Uri.parse('$baseUrl/admin/createModule');
+    final url = Uri.parse('$baseUrl/superadmin/createModule');
     final response = await http.post(
       url,
       headers: {
@@ -205,7 +203,6 @@ class AdminAPI {
       },
       body: jsonEncode({
         'courseId': courseId,
-        'batchId': batchId,
         'title': title,
         'content': content,
       }),
@@ -226,12 +223,11 @@ class AdminAPI {
 
   Future<String> deleteAdminmodule(
     int courseId,
-    int batchId,
     String token,
     int moduleId,
   ) async {
     final url = Uri.parse(
-      "$baseUrl/admin/deleteModule/$courseId/$moduleId/$batchId",
+      "$baseUrl/superadmin/deleteModule/$courseId/$moduleId",
     );
     try {
       final response = await http.delete(
@@ -258,19 +254,17 @@ class AdminAPI {
   Future<String> AdminupdateModuleAPI(
     String token,
     int courseId,
-    int batchId,
     String title,
     String content,
     int moduleId,
   ) async {
     final url = Uri.parse(
-      '$baseUrl/admin/updateModule',
+      '$baseUrl/superadmin/updateModule',
     ); // Ensure this is the correct endpoint for updating a course
 
     // Prepare the request payload in the correct format
     final payload = jsonEncode({
       'courseId': courseId,
-      'batchId': batchId,
       'moduleId': moduleId, // Ensure courseId is passed as a string if required
       'title': title,
       'content': content,
@@ -300,12 +294,9 @@ class AdminAPI {
   Future<List<AdminLessonmodel>> AdminfetchLessonsForModuleAPI(
     String token,
     int courseId,
-    int batchId,
     int moduleId,
   ) async {
-    final url = Uri.parse(
-      '$baseUrl/admin/getAllLessons/$courseId/$moduleId/$batchId',
-    );
+    final url = Uri.parse('$baseUrl/superadmin/getLesson/$courseId/$moduleId/');
     try {
       final response = await http.get(
         url,
@@ -328,44 +319,43 @@ class AdminAPI {
   }
 
   Future<String> AdmincreatelessonseAPI(
-    String token,
-    int courseId,
-    int batchId,
-    int moduleId,
-    String content,
-    String title,
-    String videoLink,
-  ) async {
-    final url = Uri.parse('$baseUrl/admin/createLesson');
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'courseId': courseId,
-          'batchId': batchId, // Convert to int for API
-          'moduleId': moduleId, // Convert to int for API
-          'title': title,
-          'content': content,
-          'videoLink': videoLink,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('Lesson created successfully: ${response.body}');
-        return response.body;
-      } else {
-        print('Failed to create Lesson: ${response.reasonPhrase}');
-        throw Exception('Failed to create Lesson: ${response.reasonPhrase}');
-      }
-    } catch (e) {
-      print('Error in createlessonseAPI: $e');
-      throw Exception('Failed to create lesson: $e');
+  String token,
+  int courseId,
+  int moduleId,
+  String content,
+  String title,
+  String videoLink,
+  String pdfUrl, // Added pdfUrl parameter
+) async {
+  final url = Uri.parse('$baseUrl/superadmin/createLesson');
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'courseId': courseId,
+        'moduleId': moduleId,
+        'title': title,
+        'content': content,
+        'videoLink': videoLink,
+        'pdfUrl': pdfUrl, // Added pdfUrl to the request body
+      }),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      print('Lesson created successfully: ${response.body}');
+      return response.body;
+    } else {
+      print('Failed to create Lesson: ${response.reasonPhrase}');
+      throw Exception('Failed to create Lesson: ${response.reasonPhrase}');
     }
+  } catch (e) {
+    print('Error in createlessonseAPI: $e');
+    throw Exception('Failed to create lesson: $e');
   }
+}
 
   Future<String> AdminuploadLessonFile(
     String token,
@@ -377,7 +367,7 @@ class AdminAPI {
     int lessonId,
   ) async {
     final url = Uri.parse(
-      '$baseUrl/admin/uploadLessonFile$courseId/$moduleId/$lessonId/$batchId',
+      '$baseUrl/admin/uploadLessonFile/$courseId/$moduleId/$lessonId/$batchId',
     );
 
     final payload = jsonEncode({
@@ -416,16 +406,8 @@ class AdminAPI {
     }
   }
 
-  Future<String> deleteAdminlesson(
-    int courseId,
-    int batchId,
-    String token,
-    int moduleId,
-    int lessonId,
-  ) async {
-    final url = Uri.parse(
-      "$baseUrl/admin/deleteLesson/$courseId/$moduleId/$lessonId/$batchId",
-    );
+  Future<String> deleteAdminlesson(String token, int lessonId) async {
+    final url = Uri.parse("$baseUrl/superadmin/deleteLesson/$lessonId");
     try {
       final response = await http.delete(
         url,
@@ -449,51 +431,52 @@ class AdminAPI {
   }
 
   Future<String> AdminupdateLessonAPI(
-    String token,
-    int courseId,
-    int batchId,
-    String title,
-    String content,
-    int moduleId,
-    int lessonId,
-  ) async {
-    final url = Uri.parse('$baseUrl/admin/updateLesson');
-
-    final payload = jsonEncode({
-      'lessonId': lessonId,
-      'courseId': courseId,
-      'batchId': batchId,
-      'moduleId': moduleId,
-      'title': title,
-      'content': content,
-    });
-
-    try {
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: payload,
+  String token,
+  int courseId,
+  String title,
+  String content,
+  int moduleId,
+  int lessonId,
+  String videoLink,
+  String pdfUrl,
+) async {
+  final url = Uri.parse('$baseUrl/superadmin/updateLesson');
+  final payload = jsonEncode({
+    'lessonId': lessonId,
+    'courseId': courseId,
+    'moduleId': moduleId,
+    'title': title,
+    'content': content,
+    'videoLink': videoLink,
+    'pdfUrl': pdfUrl,
+  });
+  
+  try {
+    final response = await http.put(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: payload,
+    );
+    
+    print(
+      'Update Lesson Response: ${response.statusCode} - ${response.body}',
+    );
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return response.body;
+    } else {
+      throw Exception(
+        'Failed to update lesson: ${response.statusCode} - ${response.body}',
       );
-
-      print(
-        'Update Lesson Response: ${response.statusCode} - ${response.body}',
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return response.body;
-      } else {
-        throw Exception(
-          'Failed to update lesson: ${response.statusCode} - ${response.body}',
-        );
-      }
-    } catch (e) {
-      print('Error updating lesson: $e');
-      rethrow;
     }
+  } catch (e) {
+    print('Error updating lesson: $e');
+    rethrow;
   }
+}
 
   Future adminCreateBatch(
     String token,
@@ -649,8 +632,9 @@ class AdminAPI {
     }
   }
 
-  Future<List<AdminAllusersmodel>> AdminfetchUsersAPI(String token) async {
-    final url = Uri.parse('$baseUrl/admin/dashboard');
+  Future<List<AdminAllusersmodel>> fetchAdminUsers(String token) async {
+    final url = Uri.parse('$baseUrl/superadmin/getAllUsers');
+
     try {
       final response = await http.get(
         url,
@@ -664,13 +648,21 @@ class AdminAPI {
       print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> users = jsonDecode(response.body)['users'];
-        return users.map((item) => AdminAllusersmodel.fromJson(item)).toList();
+        final Map<String, dynamic> responseBody = jsonDecode(response.body);
+
+        if (!responseBody.containsKey('users') ||
+            responseBody['users'] == null) {
+          throw Exception('Invalid response format: Missing "users" key');
+        }
+
+        final List<dynamic> users = responseBody['users'];
+
+        return users.map((user) => AdminAllusersmodel.fromJson(user)).toList();
       } else {
         throw Exception('Failed to fetch users: ${response.body}');
       }
     } catch (e) {
-      print('Error: $e');
+      print('Error fetching users: $e');
       rethrow;
     }
   }
@@ -681,7 +673,7 @@ class AdminAPI {
     required int batchId,
     required int userId,
   }) async {
-    final url = Uri.parse('$baseUrl/admin/assignUserToBatch');
+    final url = Uri.parse('$baseUrl/superadmin/assignStudentToBatch');
 
     try {
       final response = await http.post(
@@ -718,7 +710,7 @@ class AdminAPI {
     required int userId,
   }) async {
     final url = Uri.parse(
-      '$baseUrl/admin/deleteUserFromBatch/$courseId/$batchId/$userId',
+      '$baseUrl/superadmin/removeStudentFromBatch/$courseId/$batchId/$userId',
     );
 
     try {
@@ -755,7 +747,7 @@ class AdminAPI {
     required String role,
     required String action,
   }) async {
-    final url = Uri.parse('$baseUrl/admin/adminApproveUser');
+    final url = Uri.parse('$baseUrl/superadmin/manageUserApproval');
 
     try {
       final response = await http.post(
@@ -869,25 +861,6 @@ class AdminAPI {
     }
   }
 
-  Future<http.Response> get(
-    String endpoint, {
-    required Map<String, String> headers,
-  }) async {
-    try {
-      final url = Uri.parse('$baseUrl$endpoint');
-      print('Making GET request to: $url');
-
-      final response = await http.get(url, headers: headers);
-      print('Response status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
-      return response;
-    } catch (e) {
-      print('Error in GET request: $e');
-      throw Exception('Failed to make GET request: $e');
-    }
-  }
-
   Future<void> createAssignmentAPI({
     required String token,
     required int courseId,
@@ -896,7 +869,7 @@ class AdminAPI {
     required String description,
     required String dueDate,
   }) async {
-    final url = Uri.parse('$baseUrl/admin/createAssignment');
+    final url = Uri.parse('$baseUrl/superadmin/createAssignment');
     try {
       final response = await http.post(
         url,
@@ -932,7 +905,7 @@ class AdminAPI {
     int courseId,
     int moduleId,
   ) async {
-    final url = Uri.parse('$baseUrl/admin/getAssignments/$courseId/$moduleId');
+    final url = Uri.parse('$baseUrl/superadmin/viewAssignments/$courseId/$moduleId');
     try {
       print('Fetching assignments from: $url'); // Debug URL
 
@@ -979,7 +952,7 @@ class AdminAPI {
     int moduleId,
   ) async {
     final url = Uri.parse(
-      "$baseUrl/admin/deleteAssignment/$assignmentId/$courseId/$moduleId",
+      "$baseUrl/superadmin/deleteAssignment/$assignmentId/$courseId/$moduleId",
     );
 
     try {
@@ -1014,7 +987,7 @@ class AdminAPI {
     int moduleId,
     int assignmentId,
   ) async {
-    final url = Uri.parse('$baseUrl/admin/updateAssignment/$assignmentId');
+    final url = Uri.parse('$baseUrl/superadmin/updateAssignment/$assignmentId');
 
     final payload = jsonEncode({
       'assignmentId': assignmentId,
@@ -1057,7 +1030,7 @@ class AdminAPI {
     int batchId,
   ) async {
     final url = Uri.parse(
-      '$baseUrl/admin/getStudentsByBatchId/$courseId/$batchId',
+      '$baseUrl/superadmin/getStudentsByBatchId/$courseId/$batchId',
     );
 
     try {
@@ -1149,7 +1122,7 @@ class AdminAPI {
     String token,
   ) async {
     final url = Uri.parse(
-      '$baseUrl/admin/getSubmittedAssignments/$assignmentId',
+      '$baseUrl/superadmin/getSubmittedAssignments/$assignmentId',
     );
     try {
       final response = await http.get(
@@ -1711,7 +1684,7 @@ class AdminAPI {
   Future<List<LeaveRequest>> AdminfetchgetAllLeaveRequestssAPI(
     String token,
   ) async {
-    final url = Uri.parse('$baseUrl/admin/getAllLeaveRequests');
+    final url = Uri.parse('$baseUrl/superadmin/getAllLeaveRequests');
     try {
       final response = await http.get(
         url,
@@ -1741,7 +1714,7 @@ class AdminAPI {
     required int leaveId,
     required String status,
   }) async {
-    final url = Uri.parse('$baseUrl/admin/updateLeaveStatus/$leaveId');
+    final url = Uri.parse('$baseUrl/superadmin/updateLeaveStatus/$leaveId');
 
     try {
       final response = await http.put(
@@ -1796,4 +1769,151 @@ class AdminAPI {
       rethrow;
     }
   }
+
+Future<bool> manageStudentAccessAPI({
+  required String token,
+  required int studentId,
+  required int batchId,
+  required String action,
+}) async {
+  final url = Uri.parse('$baseUrl/superadmin/manageStudentAccess');
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'studentId': studentId,
+        'batchId': batchId,
+        'action': action,
+      }),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      print('Student access updated successfully: ${response.body}');
+      return true;
+    } else {
+      print('Failed to update student access: ${response.body}');
+      throw Exception(
+        'Failed to update student access: ${response.reasonPhrase}',
+      );
+    }
+  } catch (e) {
+    print('Error in manageStudentAccessAPI: $e');
+    throw Exception('Failed to update student access: $e');
+  }
+}
+
+Future<List<AttendanceHistory>> fetchAttendanceHistory(
+  int studentId,
+  String token,
+) async {
+  final url = Uri.parse('$baseUrl/superadmin/getStudentAttendanceHistory/$studentId');
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Status Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      // Extract the attendance history array from the response
+      final List<dynamic> historyList = responseData['attendanceHistory'];
+      print('Attendance History array: $historyList'); // Debug print
+
+      return historyList
+          .map((item) => AttendanceHistory.fromMap(item))
+          .toList();
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to load attendance history: ${response.body}');
+    }
+  } catch (e) {
+    print('Error: $e');
+    rethrow;
+  }
+}
+
+  
+Future<String> updateStudentAttendance(
+  String token,
+  int attendanceId,
+  String status,
+) async {
+  final url = Uri.parse('$baseUrl/superadmin/editStudentAttendance');
+
+  // Prepare the request payload
+  final payload = jsonEncode({
+    'attendanceId': attendanceId,
+    'status': status,
+  });
+
+  try {
+    final response = await http.put(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: payload,
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return response.body;
+    } else {
+      throw Exception('Failed to update attendance: ${response.reasonPhrase}');
+    }
+  } catch (e) {
+    print('Error updating attendance: $e');
+    rethrow;
+  }
+}
+
+Future<List<Transaction>> fetchTransactions(String token, int studentId) async {
+  final url = Uri.parse('$baseUrl/superadmin/getTransactions/$studentId');
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Status Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseBody = jsonDecode(response.body);
+      
+      // Check if 'transactions' key exists and is a list
+      if (responseBody['transactions'] is List) {
+        final List<dynamic> transactions = responseBody['transactions'];
+        return transactions
+            .map((item) => Transaction.fromJson(item))
+            .whereType<Transaction>()
+            .toList();
+      } else {
+        print('No transactions found or invalid format');
+        return [];
+      }
+    } else {
+      print('Failed to fetch transactions: ${response.body}');
+      throw Exception('Failed to fetch transactions: ${response.body}');
+    }
+  } catch (e) {
+    print('Error fetching transactions: $e');
+    rethrow;
+  }
+}
+
 }
